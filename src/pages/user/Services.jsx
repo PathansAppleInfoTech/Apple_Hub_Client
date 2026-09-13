@@ -1,8 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import Seo from '../../components/common/Seo';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CATEGORIES, PACKAGES, formatPrice } from '../../data/servicesData';
+import Seo from '../../components/common/Seo';
+import toast from 'react-hot-toast';
+
+import {
+  getServices,
+  getCategories,
+} from '../../api/services';
 
 const COLOR_MAP = {
   brand: {
@@ -26,28 +31,152 @@ const COLOR_MAP = {
     price: 'text-whatsapp-deep',
     pillActive: 'bg-whatsapp text-white border-whatsapp',
   },
+  coral: {
+    iconBg: 'bg-coral text-white',
+    tagBg: 'bg-coral-soft text-coral-deep',
+    ring: 'hover:border-coral/40',
+    price: 'text-coral-deep',
+    pillActive: 'bg-coral text-white border-coral',
+  },
 };
 
+const DEFAULT_COLORS = ['brand', 'teal', 'whatsapp', 'coral'];
+
 const fadeUp = {
-  hidden: { opacity: 0, y: 18 },
+  hidden: {
+    opacity: 0,
+    y: 18,
+  },
   show: (i = 0) => ({
     opacity: 1,
     y: 0,
-    transition: { duration: 0.55, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] },
+    transition: {
+      duration: 0.55,
+      delay: i * 0.08,
+      ease: [0.22, 1, 0.36, 1],
+    },
   }),
 };
 
-//HERO
+// --------------------------------------------------
+// Helpers
+// --------------------------------------------------
+
+function parseJsonField(value, fallback = []) {
+  if (Array.isArray(value)) return value;
+
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  return fallback;
+}
+
+function getCategoryColor(category, index = 0) {
+  if (category?.color && COLOR_MAP[category.color]) {
+    return category.color;
+  }
+
+  return DEFAULT_COLORS[index % DEFAULT_COLORS.length];
+}
+
+function formatServicePrice(service) {
+  if (
+    service.price === null ||
+    service.price === undefined ||
+    service.price === ''
+  ) {
+    return service.price_suffix || 'Custom';
+  }
+
+  const numericPrice = Number(service.price);
+
+  if (Number.isNaN(numericPrice)) {
+    return service.price_suffix || service.price;
+  }
+
+  const formatted = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(numericPrice);
+
+  return `${formatted}${service.price_suffix ? ` ${service.price_suffix}` : ''}`;
+}
+
+function normalizeCategory(category, index) {
+  return {
+    ...category,
+    color: getCategoryColor(category, index),
+    tagline:
+      category.tagline ||
+      category.description ||
+      'Explore our services and choose the package that fits your business.',
+  };
+}
+
+function normalizeService(service, categories) {
+  const category =
+    categories.find(
+      (cat) => String(cat.id) === String(service.category_id)
+    ) || null;
+
+  return {
+    ...service,
+
+    category:
+      service.category ||
+      category?.slug ||
+      service.category_slug ||
+      'other',
+
+    category_name:
+      service.category_name ||
+      category?.name ||
+      'Services',
+
+    tier:
+      service.tier ||
+      'Service Package',
+
+    summary:
+      service.short_description ||
+      service.description ||
+      'Professional service package designed for your business.',
+
+    features: parseJsonField(service.features, []),
+
+    notes: parseJsonField(service.notes, []),
+
+    freebies:
+      service.freebies || null,
+
+    popular:
+      Number(service.popular) === 1,
+
+    is_active:
+      Number(service.is_active) === 1,
+  };
+}
+
+// --------------------------------------------------
+// HERO
+// --------------------------------------------------
 
 function ServicesHero() {
   return (
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute -top-24 -left-24 h-80 w-80 rounded-full bg-brand/20 blur-[90px]" />
-        <div className="absolute top-10 right-[-6rem] h-96 w-96 rounded-full bg-coral/20 blur-[100px]" />
+        <div className="absolute -left-24 -top-24 h-80 w-80 rounded-full bg-brand/20 blur-[90px]" />
+        <div className="absolute right-[-6rem] top-10 h-96 w-96 rounded-full bg-coral/20 blur-[100px]" />
       </div>
 
-      <div className="mx-auto max-w-4xl px-6 pt-16 pb-10 text-center md:pt-24 md:pb-14">
+      <div className="mx-auto max-w-4xl px-6 pb-10 pt-16 text-center md:pb-14 md:pt-24">
         <motion.div
           initial="hidden"
           animate="show"
@@ -66,8 +195,10 @@ function ServicesHero() {
           variants={fadeUp}
           className="mt-6 font-display text-4xl font-bold leading-[1.1] tracking-tight text-ink sm:text-5xl"
         >
-          Every package, priced upfront —
-          <span className="bg-gradient-to-r from-brand to-coral bg-clip-text text-transparent"> pick what fits and go.</span>
+          Powerful solutions,
+          <span className="bg-gradient-to-r from-brand to-coral bg-clip-text text-transparent">
+            {' '}priced for your growth.
+          </span>
         </motion.h1>
 
         <motion.p
@@ -77,27 +208,38 @@ function ServicesHero() {
           variants={fadeUp}
           className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-ink-muted sm:text-lg"
         >
-          Search or filter by category to find the right plan, then open any package for full
-          details before you buy.
+          Explore our latest services and packages, choose the plan that
+          fits your business, and get started with confidence.
         </motion.p>
       </div>
     </section>
   );
 }
 
-//SEARCH + FILTER BAR
+// --------------------------------------------------
+// SEARCH + FILTER
+// --------------------------------------------------
 
-function FilterBar({ query, setQuery, activeCategory, setActiveCategory, counts, total }) {
+function FilterBar({
+  query,
+  setQuery,
+  activeCategory,
+  setActiveCategory,
+  categories,
+  counts,
+  total,
+}) {
   return (
     <div className="sticky top-0 z-10 -mx-6 border-y border-border bg-white/90 px-6 py-4 backdrop-blur">
       <div className="mx-auto flex max-w-7xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="relative w-full md:max-w-xs">
           <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-faint" />
+
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search packages…"
+            placeholder="Search services..."
             className="w-full rounded-full border border-border bg-canvas-soft py-2.5 pl-10 pr-4 text-sm text-ink placeholder:text-ink-faint focus:border-brand/50 focus:outline-none focus:ring-2 focus:ring-brand/20"
           />
         </div>
@@ -110,28 +252,45 @@ function FilterBar({ query, setQuery, activeCategory, setActiveCategory, counts,
           >
             All ({total})
           </FilterPill>
-          {CATEGORIES.map((c) => (
-            <FilterPill
-              key={c.slug}
-              active={activeCategory === c.slug}
-              onClick={() => setActiveCategory(c.slug)}
-              colorClass={COLOR_MAP[c.color].pillActive}
-            >
-              {c.name} ({counts[c.slug] || 0})
-            </FilterPill>
-          ))}
+
+          {categories.map((category) => {
+            const color = getCategoryColor(
+              category,
+              categories.indexOf(category)
+            );
+
+            return (
+              <FilterPill
+                key={category.id || category.slug}
+                active={activeCategory === String(category.id)}
+                onClick={() =>
+                  setActiveCategory(String(category.id))
+                }
+                colorClass={COLOR_MAP[color].pillActive}
+              >
+                {category.name} ({counts[category.id] || 0})
+              </FilterPill>
+            );
+          })}
         </div>
       </div>
     </div>
   );
 }
 
-function FilterPill({ active, onClick, colorClass, children }) {
+function FilterPill({
+  active,
+  onClick,
+  colorClass,
+  children,
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full border px-4 py-2 text-xs font-semibold transition-colors ${active ? colorClass : 'border-border bg-white text-ink-muted hover:border-ink/20'
+      className={`rounded-full border px-4 py-2 text-xs font-semibold transition-colors ${active
+          ? colorClass
+          : 'border-border bg-white text-ink-muted hover:border-ink/20'
         }`}
     >
       {children}
@@ -139,55 +298,101 @@ function FilterPill({ active, onClick, colorClass, children }) {
   );
 }
 
-//PACKAGE CARD
+// --------------------------------------------------
+// SERVICE CARD
+// --------------------------------------------------
 
-function PackageCard({ pkg, color, index }) {
+function ServiceCard({
+  service,
+  category,
+  index,
+}) {
+  const color = getCategoryColor(category, index);
   const colors = COLOR_MAP[color];
+
   return (
     <motion.div
       layout
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 10 }}
-      transition={{ duration: 0.35, delay: index * 0.04 }}
+      transition={{
+        duration: 0.35,
+        delay: index * 0.04,
+      }}
     >
       <Link
-        to={`/services/${pkg.slug}`}
+        to={`/services/${service.slug || service.id}`}
         className={`group relative flex h-full flex-col rounded-3xl border border-border bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl ${colors.ring}`}
       >
-        {pkg.popular && (
-          <span className="absolute -top-3 right-6 rounded-full bg-coral px-3 py-1 text-[11px] font-bold text-white shadow-sm">
+        {service.popular && (
+          <span className="absolute -right-1 top-5 rounded-full bg-coral px-3 py-1 text-[11px] font-bold text-white shadow-sm">
             Popular
           </span>
         )}
 
-        <span className={`inline-flex w-fit rounded-full px-3 py-1 text-[11px] font-semibold ${colors.tagBg}`}>
-          {pkg.tier}
+        <span
+          className={`inline-flex w-fit rounded-full px-3 py-1 text-[11px] font-semibold ${colors.tagBg}`}
+        >
+          {service.tier}
         </span>
 
-        <h3 className="mt-4 font-display text-lg font-bold text-ink">{pkg.title}</h3>
-        <p className="mt-2 text-sm leading-relaxed text-ink-muted">{pkg.summary}</p>
+        <h3 className="mt-4 font-display text-lg font-bold text-ink">
+          {service.title}
+        </h3>
 
-        <ul className="mt-4 space-y-2">
-          {pkg.features.slice(0, 2).map((f) => (
-            <li key={f} className="flex items-start gap-2 text-xs text-ink-muted">
-              <svg className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-faint" viewBox="0 0 16 16" fill="none">
-                <path d="M3 8.5l3 3 7-7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              {f}
-            </li>
-          ))}
-        </ul>
+        <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-ink-muted">
+          {service.summary}
+        </p>
 
-        {pkg.freebies && (
-          <p className="mt-3 text-xs font-semibold text-gold">{pkg.freebies}</p>
+        {service.features?.length > 0 && (
+          <ul className="mt-4 space-y-2">
+            {service.features.slice(0, 3).map((feature, featureIndex) => (
+              <li
+                key={`${feature}-${featureIndex}`}
+                className="flex items-start gap-2 text-xs text-ink-muted"
+              >
+                <svg
+                  className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${colors.price}`}
+                  viewBox="0 0 16 16"
+                  fill="none"
+                >
+                  <path
+                    d="M3 8.5l3 3 7-7"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+
+                {feature}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {service.freebies && (
+          <p className="mt-3 text-xs font-semibold text-gold">
+            🎁 {service.freebies}
+          </p>
         )}
 
         <div className="mt-6 flex items-end justify-between border-t border-border pt-4">
           <div>
-            <p className={`font-display text-xl font-bold ${colors.price}`}>{formatPrice(pkg)}</p>
-            <p className="text-xs text-ink-faint">{pkg.duration}</p>
+            <p
+              className={`font-display text-xl font-bold ${colors.price}`}
+            >
+              {formatServicePrice(service)}
+            </p>
+
+            {service.duration && (
+              <p className="mt-0.5 text-xs text-ink-faint">
+                {service.duration}
+              </p>
+            )}
           </div>
+
           <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-xs font-semibold text-ink transition-colors group-hover:border-ink group-hover:bg-ink group-hover:text-white">
             View details
           </span>
@@ -197,109 +402,409 @@ function PackageCard({ pkg, color, index }) {
   );
 }
 
-//MAIN LIST (grouped by category)
+// --------------------------------------------------
+// CATEGORY SECTION
+// --------------------------------------------------
 
-function ServiceCategorySection({ category, packages }) {
-  if (packages.length === 0) return null;
-  const colors = COLOR_MAP[category.color];
+function ServiceCategorySection({
+  category,
+  services,
+  categoryIndex,
+}) {
+  if (!services.length) return null;
+
+  const color = getCategoryColor(category, categoryIndex);
+  const colors = COLOR_MAP[color];
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-40px' }}
+      viewport={{
+        once: true,
+        margin: '-40px',
+      }}
       transition={{ duration: 0.5 }}
       className="py-10"
     >
       <div className="flex flex-wrap items-center gap-3">
-        <span className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${colors.iconBg}`}>
+        <span
+          className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${colors.iconBg}`}
+        >
           <DotIcon />
         </span>
+
         <div>
-          <h2 className="font-display text-2xl font-bold tracking-tight text-ink">{category.name}</h2>
-          <p className="text-sm text-ink-muted">{category.tagline}</p>
+          <h2 className="font-display text-2xl font-bold tracking-tight text-ink">
+            {category.name}
+          </h2>
+
+          <p className="text-sm text-ink-muted">
+            {category.tagline}
+          </p>
         </div>
       </div>
 
       <div className="mt-7 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {packages.map((pkg, i) => (
-          <PackageCard key={pkg.slug} pkg={pkg} color={category.color} index={i} />
+        {services.map((service, index) => (
+          <ServiceCard
+            key={service.id || service.slug}
+            service={service}
+            category={category}
+            index={index}
+          />
         ))}
       </div>
     </motion.div>
   );
 }
 
-function EmptyState({ query, onClear }) {
+// --------------------------------------------------
+// EMPTY STATE
+// --------------------------------------------------
+
+function EmptyState({
+  query,
+  onClear,
+}) {
   return (
     <div className="mx-auto max-w-md py-20 text-center">
-      <p className="font-display text-lg font-bold text-ink">No packages match "{query}"</p>
-      <p className="mt-2 text-sm text-ink-muted">Try a different keyword, or clear your search to see everything.</p>
-      <button
-        type="button"
-        onClick={onClear}
-        className="mt-5 rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-ink hover:border-ink/30"
-      >
-        Clear search
-      </button>
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-soft text-brand">
+        <SearchIcon />
+      </div>
+
+      <p className="mt-5 font-display text-lg font-bold text-ink">
+        No services found
+      </p>
+
+      <p className="mt-2 text-sm text-ink-muted">
+        {query
+          ? `Nothing matched "${query}". Try another keyword.`
+          : 'There are currently no active services available.'}
+      </p>
+
+      {query && (
+        <button
+          type="button"
+          onClick={onClear}
+          className="mt-5 rounded-full border border-border px-5 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-ink/30"
+        >
+          Clear search
+        </button>
+      )}
     </div>
   );
 }
 
-//ICONS
+// --------------------------------------------------
+// LOADING
+// --------------------------------------------------
 
-function SearchIcon({ className }) {
+function LoadingState() {
   return (
-    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none">
-      <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M21 21l-4.3-4.3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    <div className="grid gap-6 py-10 sm:grid-cols-2 lg:grid-cols-3">
+      {[1, 2, 3, 4, 5, 6].map((item) => (
+        <div
+          key={item}
+          className="animate-pulse rounded-3xl border border-border bg-white p-6"
+        >
+          <div className="h-6 w-28 rounded-full bg-canvas-soft" />
+          <div className="mt-5 h-6 w-3/4 rounded-lg bg-canvas-soft" />
+          <div className="mt-3 h-4 w-full rounded bg-canvas-soft" />
+          <div className="mt-2 h-4 w-5/6 rounded bg-canvas-soft" />
+          <div className="mt-6 h-px bg-border" />
+          <div className="mt-5 h-7 w-24 rounded bg-canvas-soft" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// --------------------------------------------------
+// ICONS
+// --------------------------------------------------
+
+function SearchIcon({ className = '' }) {
+  return (
+    <svg
+      className={className}
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <circle
+        cx="11"
+        cy="11"
+        r="7"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+
+      <path
+        d="M21 21l-4.3-4.3"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
+
 function DotIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="4" fill="currentColor" />
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.4" opacity="0.5" />
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <circle
+        cx="12"
+        cy="12"
+        r="4"
+        fill="currentColor"
+      />
+
+      <circle
+        cx="12"
+        cy="12"
+        r="9"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        opacity="0.5"
+      />
     </svg>
   );
 }
 
+// --------------------------------------------------
+// MAIN
+// --------------------------------------------------
+
 export default function Services() {
+  const [services, setServices] = useState([]);
+  const [categories, setCategories] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
 
-  const normalizedQuery = query.trim().toLowerCase();
+  // --------------------------------------------------
+  // LOAD REAL API DATA
+  // --------------------------------------------------
 
-  const matches = (pkg) => {
-    if (!normalizedQuery) return true;
-    const haystack = [pkg.title, pkg.tier, pkg.summary, ...pkg.features].join(' ').toLowerCase();
-    return haystack.includes(normalizedQuery);
-  };
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadServices() {
+      console.log(
+        '[Services] Loading categories and services...'
+      );
+
+      setLoading(true);
+
+      try {
+        const [
+          servicesData,
+          categoriesData,
+        ] = await Promise.all([
+          getServices(),
+          getCategories(),
+        ]);
+
+        if (!mounted) return;
+
+        const rawCategories = Array.isArray(categoriesData)
+          ? categoriesData
+          : [];
+
+        const rawServices = Array.isArray(servicesData)
+          ? servicesData
+          : [];
+
+        const normalizedCategories =
+          rawCategories.map(normalizeCategory);
+
+        const normalizedServices = rawServices
+          .filter(
+            (service) =>
+              Number(service.is_active) === 1
+          )
+          .map((service) =>
+            normalizeService(
+              service,
+              normalizedCategories
+            )
+          );
+
+        setCategories(normalizedCategories);
+        setServices(normalizedServices);
+
+        console.log('[Services] Loaded successfully', {
+          categories: normalizedCategories.length,
+          services: normalizedServices.length,
+        });
+      } catch (error) {
+        if (!mounted) return;
+
+        console.error(
+          '[Services] Failed to load:',
+          error
+        );
+
+        toast.error(
+          error?.message ||
+          'Unable to load services. Please try again.'
+        );
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadServices();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // --------------------------------------------------
+  // FILTER
+  // --------------------------------------------------
+
+  const filteredServices = useMemo(() => {
+    const normalizedQuery =
+      query.trim().toLowerCase();
+
+    return services.filter((service) => {
+      const categoryMatches =
+        activeCategory === 'all' ||
+        String(service.category_id) ===
+        String(activeCategory);
+
+      if (!categoryMatches) {
+        return false;
+      }
+
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      const searchableText = [
+        service.title,
+        service.tier,
+        service.summary,
+        service.description,
+        service.category_name,
+        service.duration,
+        service.freebies,
+        ...(service.features || []),
+        ...(service.notes || []),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return searchableText.includes(
+        normalizedQuery
+      );
+    });
+  }, [
+    services,
+    query,
+    activeCategory,
+  ]);
+
+  // --------------------------------------------------
+  // CATEGORY COUNTS
+  // --------------------------------------------------
 
   const counts = useMemo(() => {
-    const c = {};
-    CATEGORIES.forEach((cat) => {
-      c[cat.slug] = PACKAGES.filter((p) => p.category === cat.slug && matches(p)).length;
+    const result = {};
+
+    categories.forEach((category) => {
+      result[category.id] =
+        services.filter(
+          (service) =>
+            String(service.category_id) ===
+            String(category.id) &&
+            (() => {
+              const normalizedQuery =
+                query.trim().toLowerCase();
+
+              if (!normalizedQuery) {
+                return true;
+              }
+
+              const searchableText = [
+                service.title,
+                service.tier,
+                service.summary,
+                service.description,
+                service.category_name,
+                ...(service.features || []),
+                ...(service.notes || []),
+              ]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase();
+
+              return searchableText.includes(
+                normalizedQuery
+              );
+            })()
+        ).length;
     });
-    return c;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [normalizedQuery]);
 
-  const visibleCategories = activeCategory === 'all' ? CATEGORIES : CATEGORIES.filter((c) => c.slug === activeCategory);
+    return result;
+  }, [
+    categories,
+    services,
+    query,
+  ]);
 
-  const totalVisible = visibleCategories.reduce(
-    (sum, cat) => sum + PACKAGES.filter((p) => p.category === cat.slug && matches(p)).length,
-    0
-  );
+  // --------------------------------------------------
+  // GROUP SERVICES
+  // --------------------------------------------------
+
+  const visibleCategories = useMemo(() => {
+    return categories.filter((category) => {
+      if (
+        activeCategory !== 'all' &&
+        String(category.id) !==
+        String(activeCategory)
+      ) {
+        return false;
+      }
+
+      return filteredServices.some(
+        (service) =>
+          String(service.category_id) ===
+          String(category.id)
+      );
+    });
+  }, [
+    categories,
+    activeCategory,
+    filteredServices,
+  ]);
+
+  // --------------------------------------------------
+  // RENDER
+  // --------------------------------------------------
 
   return (
     <div className="min-h-screen bg-canvas">
       <Seo
         title="Services & Packages"
-        description="Browse Apple Hub's Facebook & Instagram marketing packages, AI video ad rates, and WhatsApp Business automation plans. Transparent pricing, no hidden charges."
+        description="Explore Apple Hub's Facebook & Instagram marketing, AI video advertising, WhatsApp Business solutions and other professional digital services."
         path="/services"
       />
+
       <main>
         <ServicesHero />
 
@@ -309,25 +814,55 @@ export default function Services() {
             setQuery={setQuery}
             activeCategory={activeCategory}
             setActiveCategory={setActiveCategory}
+            categories={categories}
             counts={counts}
-            total={PACKAGES.filter(matches).length}
+            total={filteredServices.length}
           />
 
-          <AnimatePresence mode="wait">
-            {totalVisible === 0 ? (
-              <EmptyState query={query} onClear={() => setQuery('')} />
-            ) : (
-              <div className="divide-y divide-border">
-                {visibleCategories.map((cat) => (
-                  <ServiceCategorySection
-                    key={cat.slug}
-                    category={cat}
-                    packages={PACKAGES.filter((p) => p.category === cat.slug && matches(p))}
-                  />
-                ))}
-              </div>
-            )}
-          </AnimatePresence>
+          {loading ? (
+            <LoadingState />
+          ) : (
+            <AnimatePresence mode="wait">
+              {filteredServices.length === 0 ? (
+                <EmptyState
+                  query={query}
+                  onClear={() => {
+                    setQuery('');
+                    setActiveCategory('all');
+                  }}
+                />
+              ) : (
+                <div className="divide-y divide-border">
+                  {visibleCategories.map(
+                    (category, categoryIndex) => {
+                      const categoryServices =
+                        filteredServices.filter(
+                          (service) =>
+                            String(
+                              service.category_id
+                            ) ===
+                            String(category.id)
+                        );
+
+                      return (
+                        <ServiceCategorySection
+                          key={
+                            category.id ||
+                            category.slug
+                          }
+                          category={category}
+                          services={categoryServices}
+                          categoryIndex={
+                            categoryIndex
+                          }
+                        />
+                      );
+                    }
+                  )}
+                </div>
+              )}
+            </AnimatePresence>
+          )}
         </div>
 
         <div className="h-16" />

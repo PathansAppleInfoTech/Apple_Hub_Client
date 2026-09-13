@@ -11,16 +11,24 @@ import {
 
 import { formatPrice } from '../../components/ServiceCard';
 import { LoadingState } from '../../components/StateViews';
+import ServiceModal from '../../components/admin/services/ServicesModal';
 
 const EMPTY_FORM = {
   title: '',
   category_id: '',
+  tier: '',
   short_description: '',
   description: '',
   price: '',
+  price_suffix: '',
+  duration: '',
+  popular: 0,
+  features: [],
+  notes: [],
+  freebies: '',
+  image: '',
   is_active: 1,
 };
-
 export default function AdminServices() {
   const [services, setServices] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -182,14 +190,43 @@ export default function AdminServices() {
     setForm({
       title: service.title || '',
       category_id: service.category_id || '',
+
+      tier: service.tier || '',
+
       short_description:
         service.short_description || '',
-      description: service.description || '',
+
+      description:
+        service.description || '',
+
       price:
         service.price === null ||
           service.price === undefined
           ? ''
           : String(service.price),
+
+      price_suffix:
+        service.price_suffix || '',
+
+      duration:
+        service.duration || '',
+
+      popular:
+        Number(service.popular) === 1 ? 1 : 0,
+
+      features:
+        Array.isArray(service.features)
+          ? service.features
+          : [],
+
+      notes:
+        Array.isArray(service.notes)
+          ? service.notes
+          : [],
+
+      freebies:
+        service.freebies || '',
+
       is_active:
         Number(service.is_active) === 1 ? 1 : 0,
     });
@@ -212,83 +249,85 @@ export default function AdminServices() {
   async function handleSave(event) {
     event.preventDefault();
 
-    if (saving) return;
-
-    if (!form.title.trim()) {
-      toast.error('Service title is required');
-      return;
-    }
-
-    if (form.title.trim().length < 3) {
-      toast.error(
-        'Service title must be at least 3 characters'
-      );
-      return;
-    }
-
-    if (
-      form.price !== '' &&
-      (Number.isNaN(Number(form.price)) ||
-        Number(form.price) < 0)
-    ) {
-      toast.error('Please enter a valid price');
-      return;
-    }
-
     const payload = {
       title: form.title.trim(),
-      category_id: form.category_id || null,
+      category_id: form.category_id
+        ? Number(form.category_id)
+        : null,
+
+      tier: form.tier.trim() || null,
+
       short_description:
-        form.short_description.trim(),
-      description: form.description.trim(),
+        form.short_description.trim() || null,
+
+      description:
+        form.description.trim() || null,
+
+      // Empty price = Custom = NULL
       price:
-        form.price === ''
+        form.price === '' ||
+          form.price === null
           ? null
           : Number(form.price),
-      is_active: Number(form.is_active),
+
+      price_suffix:
+        form.price_suffix.trim() || null,
+
+      duration:
+        form.duration.trim() || null,
+
+      popular: Number(form.popular) ? 1 : 0,
+
+      features: Array.isArray(form.features)
+        ? form.features
+        : [],
+
+      notes: Array.isArray(form.notes)
+        ? form.notes
+        : [],
+
+      freebies:
+        form.freebies.trim() || null,
+
+      image:
+        form.image?.trim() || null,
+
+      is_active: Number(form.is_active) ? 1 : 0,
     };
 
     console.log(
-      `[Admin Services] ${editing ? 'Updating' : 'Creating'
-      } service`,
-      payload
+      `[Services] ${editing ? 'Updating' : 'Creating'} service:`,
+      {
+        title: payload.title,
+        category_id: payload.category_id,
+        price: payload.price,
+        popular: payload.popular,
+      }
     );
 
-    setSaving(true);
-
     try {
-      if (editing) {
-        await updateService(
-          editing.id,
-          payload
-        );
+      setSaving(true);
 
-        toast.success(
-          'Service updated successfully'
-        );
+      if (editing) {
+        await updateService(editing.id, payload);
+        toast.success('Service updated successfully.');
       } else {
         await createService(payload);
-
-        toast.success(
-          'Service created successfully'
-        );
+        toast.success('Service created successfully.');
       }
 
-      setModalOpen(false);
-      setEditing(null);
-      setForm({ ...EMPTY_FORM });
-
+      closeModal();
       await loadData();
     } catch (error) {
       console.error(
-        '[Admin Services] Save failed:',
+        '[Services] Save failed:',
         error
       );
 
       toast.error(
-        error?.message ||
-        `Failed to ${editing ? 'update' : 'create'
-        } service`
+        error.message ||
+        `Unable to ${editing ? 'update' : 'create'
+        } service.`
       );
     } finally {
       setSaving(false);
@@ -660,23 +699,6 @@ export default function AdminServices() {
 
             {/* Category Filter */}
             <div className="relative w-full xl:w-60">
-              {/* Icon */}
-              {/* <div className="pointer-events-none absolute inset-y-0 left-3.5 z-10 flex items-center text-ink-muted">
-                <svg
-                  width="17"
-                  height="17"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M4 6h16" />
-                  <path d="M7 12h10" />
-                  <path d="M10 18h4" />
-                </svg>
-              </div> */}
 
               <CustomDropdown
                 value={categoryFilter}
@@ -709,41 +731,12 @@ export default function AdminServices() {
                   })),
                 ]}
               />
-              {/* Chevron */}
-              {/* <div className="pointer-events-none absolute inset-y-0 right-3.5 flex items-center text-ink-muted">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </div> */}
+
             </div>
 
             {/* Status Filter */}
             <div className="relative w-full xl:w-44">
-              {/* Status Icon */}
-              {/* <div className="pointer-events-none absolute inset-y-0 left-3.5 z-10 flex items-center text-ink-muted">
-                <svg
-                  width="17"
-                  height="17"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="12" cy="12" r="9" />
-                  <path d="M12 8v4l2.5 2.5" />
-                </svg>
-              </div> */}
+
 
               <CustomDropdown
                 value={statusFilter}
@@ -782,21 +775,7 @@ export default function AdminServices() {
                 ]}
               />
 
-              {/* Chevron */}
-              {/* <div className="pointer-events-none absolute inset-y-0 right-3.5 flex items-center text-ink-muted">
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </div> */}
+
             </div>
 
             {/* Clear Filters */}
@@ -1314,459 +1293,6 @@ function StatusBadge({ active }) {
   );
 }
 
-// =============================================================
-// CUSTOM SERVICE MODAL
-// =============================================================
-
-function ServiceModal({
-  editing,
-  form,
-  categories,
-  saving,
-  updateForm,
-  onClose,
-  onSubmit,
-}) {
-  useEffect(() => {
-    function handleKeyDown(event) {
-      if (
-        event.key === 'Escape' &&
-        !saving
-      ) {
-        onClose();
-      }
-    }
-
-    document.addEventListener(
-      'keydown',
-      handleKeyDown
-    );
-
-    return () => {
-      document.removeEventListener(
-        'keydown',
-        handleKeyDown
-      );
-    };
-  }, [onClose, saving]);
-
-  return (
-    <div
-      className="
-        fixed inset-0 z-[100]
-        flex items-end justify-center
-        bg-ink/30 p-0
-        backdrop-blur-[2px]
-        sm:items-center sm:p-5
-      "
-      onMouseDown={(event) => {
-        if (
-          event.target === event.currentTarget &&
-          !saving
-        ) {
-          onClose();
-        }
-      }}
-    >
-      <div
-        className="
-          flex max-h-[94vh] w-full
-          max-w-2xl flex-col
-          overflow-hidden
-          rounded-t-[24px]
-          border border-border
-          bg-surface
-          shadow-[0_30px_90px_rgba(21,22,43,0.18)]
-          sm:max-h-[90vh]
-          sm:rounded-2xl
-        "
-      >
-
-        {/* Header */}
-
-        <div className="flex items-center justify-between border-b border-border px-5 py-5 sm:px-6">
-
-          <div className="flex items-center gap-3">
-
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-soft text-brand">
-              {editing ? (
-                <EditIconLarge />
-              ) : (
-                <PlusIcon />
-              )}
-            </div>
-
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-brand">
-                {editing
-                  ? 'Service management'
-                  : 'New service'}
-              </p>
-
-              <h2 className="mt-0.5 font-display text-lg font-bold text-ink">
-                {editing
-                  ? 'Edit Service'
-                  : 'Add Service'}
-              </h2>
-            </div>
-
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="
-              flex h-9 w-9
-              items-center justify-center
-              rounded-xl
-              text-ink-muted
-              transition
-              hover:bg-canvas-soft
-              hover:text-ink
-              disabled:opacity-50
-            "
-          >
-            <CloseIcon />
-          </button>
-
-        </div>
-
-        {/* Content */}
-
-        <form
-          onSubmit={onSubmit}
-          className="overflow-y-auto px-5 py-5 sm:px-6 sm:py-6"
-        >
-
-          {/* Intro */}
-
-          <div className="rounded-2xl border border-brand/10 bg-brand-softer p-4">
-            <div className="flex gap-3">
-
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-brand shadow-sm">
-                <ServicesIcon />
-              </div>
-
-              <div>
-                <p className="text-sm font-semibold text-ink">
-                  {editing
-                    ? 'Update service details'
-                    : 'Create a new service'}
-                </p>
-
-                <p className="mt-1 text-xs leading-5 text-ink-muted">
-                  Keep your service information clear
-                  and customer-friendly.
-                </p>
-              </div>
-
-            </div>
-          </div>
-
-          {/* Basic Information */}
-
-          <div className="mt-6">
-
-            <ModalSection
-              title="Basic information"
-              description="The main details customers will see."
-            />
-
-            <div className="mt-4 space-y-4">
-
-              <FormField
-                label="Service title"
-                required
-                hint={`${form.title.length}/180`}
-              >
-                <input
-                  type="text"
-                  value={form.title}
-                  onChange={(event) =>
-                    updateForm(
-                      'title',
-                      event.target.value
-                    )
-                  }
-                  maxLength={180}
-                  autoFocus
-                  placeholder="Example: 30-Second AI Video Ad"
-                  className="service-input"
-                />
-              </FormField>
-
-              <FormField label="Category">
-                <select
-                  value={form.category_id}
-                  onChange={(event) =>
-                    updateForm(
-                      'category_id',
-                      event.target.value
-                    )
-                  }
-                  className="service-input"
-                >
-                  <option value="">
-                    No category
-                  </option>
-
-                  {categories.map(
-                    (category) => (
-                      <option
-                        key={category.id}
-                        value={category.id}
-                      >
-                        {category.name}
-                      </option>
-                    )
-                  )}
-                </select>
-              </FormField>
-
-              <FormField
-                label="Short description"
-                hint={`${form.short_description.length}/300`}
-              >
-                <input
-                  type="text"
-                  value={
-                    form.short_description
-                  }
-                  onChange={(event) =>
-                    updateForm(
-                      'short_description',
-                      event.target.value
-                    )
-                  }
-                  maxLength={300}
-                  placeholder="A short description customers will understand"
-                  className="service-input"
-                />
-              </FormField>
-
-              <FormField
-                label="Full description"
-                hint="Optional"
-              >
-                <textarea
-                  rows={5}
-                  value={form.description}
-                  onChange={(event) =>
-                    updateForm(
-                      'description',
-                      event.target.value
-                    )
-                  }
-                  placeholder="Describe what is included in this service..."
-                  className="service-input resize-none"
-                />
-              </FormField>
-
-            </div>
-          </div>
-
-          {/* Pricing */}
-
-          <div className="mt-7">
-
-            <ModalSection
-              title="Pricing"
-              description="Set a fixed price or use custom pricing."
-            />
-
-            <div className="mt-4 rounded-2xl border border-border bg-canvas-soft p-4">
-
-              <FormField
-                label="Price"
-                hint="Leave empty for custom pricing"
-              >
-                <div className="relative">
-
-                  <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-semibold text-ink-muted">
-                    ₹
-                  </span>
-
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={form.price}
-                    onChange={(event) =>
-                      updateForm(
-                        'price',
-                        event.target.value
-                      )
-                    }
-                    placeholder="0.00"
-                    className="service-input pl-8"
-                  />
-
-                </div>
-              </FormField>
-
-              <div className="mt-3">
-
-                {form.price === '' ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-brand-soft px-2.5 py-1.5 text-[10px] font-bold text-brand">
-                    <SparkIcon />
-                    Custom pricing
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-whatsapp-soft px-2.5 py-1.5 text-[10px] font-bold text-whatsapp-deep">
-                    <CheckSmallIcon />
-                    {formatPrice(
-                      Number(form.price)
-                    )}
-                  </span>
-                )}
-
-              </div>
-            </div>
-          </div>
-
-          {/* Visibility */}
-
-          <div className="mt-7">
-
-            <ModalSection
-              title="Visibility"
-              description="Control whether customers can see this service."
-            />
-
-            <div className="mt-4 rounded-2xl border border-border bg-surface p-4">
-
-              <div className="flex items-center justify-between gap-4">
-
-                <div className="flex items-center gap-3">
-
-                  <div
-                    className={`
-                      flex h-10 w-10
-                      items-center justify-center
-                      rounded-xl
-                      ${Number(
-                      form.is_active
-                    ) === 1
-                        ? 'bg-whatsapp-soft text-whatsapp-deep'
-                        : 'bg-canvas-soft text-ink-muted'
-                      }
-                    `}
-                  >
-                    {Number(
-                      form.is_active
-                    ) === 1 ? (
-                      <EyeIcon />
-                    ) : (
-                      <EyeOffIcon />
-                    )}
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-semibold text-ink">
-                      {Number(
-                        form.is_active
-                      ) === 1
-                        ? 'Active service'
-                        : 'Inactive service'}
-                    </p>
-
-                    <p className="mt-0.5 text-xs leading-5 text-ink-muted">
-                      {Number(
-                        form.is_active
-                      ) === 1
-                        ? 'Customers can see this service.'
-                        : 'This service is hidden from customers.'}
-                    </p>
-                  </div>
-
-                </div>
-
-                <label className="relative shrink-0 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="peer sr-only"
-                    checked={Boolean(
-                      Number(form.is_active)
-                    )}
-                    onChange={(event) =>
-                      updateForm(
-                        'is_active',
-                        event.target.checked
-                          ? 1
-                          : 0
-                      )
-                    }
-                  />
-
-                  <span className="block h-6 w-11 rounded-full bg-border transition peer-checked:bg-brand peer-focus:ring-4 peer-focus:ring-brand/10">
-                    <span className="block h-5 w-5 translate-x-0.5 translate-y-0.5 rounded-full bg-white shadow-sm transition peer-checked:translate-x-[22px]" />
-                  </span>
-                </label>
-
-              </div>
-            </div>
-          </div>
-
-          {/* Footer */}
-
-          <div className="mt-7 flex flex-col-reverse gap-3 border-t border-border pt-5 sm:flex-row sm:justify-end">
-
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={saving}
-              className="
-                rounded-xl border border-border
-                bg-white px-5 py-2.5
-                text-sm font-semibold text-ink
-                transition
-                hover:bg-canvas-soft
-                disabled:opacity-50
-              "
-            >
-              Cancel
-            </button>
-
-            <button
-              type="submit"
-              disabled={saving}
-              className="
-                inline-flex items-center
-                justify-center gap-2
-                rounded-xl bg-brand
-                px-5 py-2.5
-                text-sm font-bold text-white
-                shadow-lg shadow-brand/20
-                transition
-                hover:bg-brand-deep
-                disabled:cursor-not-allowed
-                disabled:opacity-60
-              "
-            >
-              {saving ? (
-                <>
-                  <Spinner />
-                  {editing
-                    ? 'Updating…'
-                    : 'Creating…'}
-                </>
-              ) : (
-                <>
-                  <CheckIcon />
-                  {editing
-                    ? 'Update Service'
-                    : 'Create Service'}
-                </>
-              )}
-            </button>
-
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
 
 // =============================================================
 // CUSTOM DELETE MODAL
