@@ -86,7 +86,7 @@ const MILESTONES = [
     body: 'We became a private limited company, marking a new chapter while staying true to the same hands-on, client-first way of working.',
   },
   {
-    year: 'Today',
+    year: '2026',
     title: 'Apple Hub is born',
     body: 'The next step — taking our most popular services online, so businesses anywhere can browse, purchase, and get started without a single phone call.',
   },

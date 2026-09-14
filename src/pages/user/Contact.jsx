@@ -3,10 +3,10 @@ import Seo from '../../components/common/Seo';
 import { motion } from 'framer-motion';
 
 const HQ_ADDRESS = 'AMC 19/305, First Floor, Alappuzha 688013, Kerala, India';
-const PHONE_DISPLAY = '+91 7510 666 333';
-const PHONE_TEL = '+917510666333';
+const PHONE_DISPLAY = '+91 79077 04987';
+const PHONE_TEL = '+917907704987';
 const EMAIL = 'info@pathansapple.com';
-const WHATSAPP_NUMBER = '917510666333';
+const WHATSAPP_NUMBER = '917907704987';
 
 const fadeUp = {
     hidden: { opacity: 0, y: 18 },

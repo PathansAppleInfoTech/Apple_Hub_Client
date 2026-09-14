@@ -82,7 +82,7 @@ export default function Footer() {
 
             <div className="mt-5">
               <a
-                href="#contact"
+                href="/contact"
                 className="inline-flex items-center gap-2 text-sm font-semibold text-brand transition-colors hover:text-brand-deep"
               >
                 Contact our team

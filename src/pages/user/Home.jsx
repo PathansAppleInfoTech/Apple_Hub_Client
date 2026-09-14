@@ -215,11 +215,11 @@ const SERVICES = [
     id: 'digital-marketing',
     color: 'brand',
     tag: 'Most popular',
-    title: 'Facebook & Instagram Marketing',
+    title: 'Facebook & Insta Marketing',
     description:
       'Lead-generation ad campaigns that put your business in front of the right audience — with leads, inbox messages, and direct WhatsApp replies.',
     bullets: [
-      'Guaranteed leads, messages & WhatsApp reach',
+      'Guaranteed leads, messages & reach',
       'Campaigns from 5 to 30 days',
       'Poster & video creatives available',
     ],

@@ -9,9 +9,9 @@ import {
   getAllCategories,
 } from '../../api/admin';
 
-const PHONE_DISPLAY = '+91 7510 666 333';
-const PHONE_TEL = '+917510666333';
-const WHATSAPP_NUMBER = '917510666333';
+const PHONE_DISPLAY = '+91 79077 04987';
+const PHONE_TEL = '+917907704987';
+const WHATSAPP_NUMBER = '917907704987';
 
 const COLOR_MAP = {
   brand: {
