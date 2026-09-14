@@ -21,7 +21,7 @@ export const login = async (email, password) => {
     );
 
     throw new Error(
-      error.response?.data?.message ||
+      error.response?.data?.message || error.message ||
       'Unable to login. Please check your credentials.'
     );
 
@@ -48,6 +48,7 @@ export const logout = async () => {
 
     throw new Error(
       error.response?.data?.message ||
+      error.message ||
       'Unable to logout.'
     );
   }
@@ -76,6 +77,7 @@ export const getMe = async () => {
 
     throw new Error(
       error.response?.data?.message ||
+      error.message ||
       'Session expired.'
     );
   }
@@ -103,6 +105,7 @@ export const getDashboardStats = async () => {
 
     throw new Error(
       error.response?.data?.message ||
+      error.message ||
       'Could not load dashboard statistics.'
     );
   }
