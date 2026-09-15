@@ -20,11 +20,14 @@ import AdminOrders from './pages/admin/AdminOrders';
 import AdminTeam from './pages/admin/AdminTeam';
 ;
 import { Toaster } from 'react-hot-toast';
+import SmoothScroll from './components/common/SmoothScroll';
 
 export default function App() {
   return (
     <>
       <BrowserRouter>
+
+        <SmoothScroll />
         <Routes>
 
           {/* Customer-facing site */}

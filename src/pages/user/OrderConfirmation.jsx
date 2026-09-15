@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getOrder } from '../../api/services';
-import { formatPrice } from '../../components/ServiceCard';
-import { LoadingState, ErrorState } from '../../components/StateViews';
+import { formatPrice } from '../../components/user/ServiceCard';
+import { LoadingState, ErrorState } from '../../components/admin/StateViews';
 
 export default function OrderConfirmation() {
   const { orderNumber } = useParams();

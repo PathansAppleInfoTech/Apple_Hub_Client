@@ -9,9 +9,9 @@ import {
   deleteService,
 } from '../../api/admin';
 
-import { formatPrice } from '../../components/ServiceCard';
-import { LoadingState } from '../../components/StateViews';
-import ServiceModal from '../../components/admin/services/ServicesModal';
+import { formatPrice } from '../../components/user/ServiceCard';
+import { LoadingState } from '../../components/admin/StateViews';
+import ServiceModal from '../../components/admin/ServicesModal';
 
 const EMPTY_FORM = {
   title: '',

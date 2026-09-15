@@ -5,8 +5,8 @@ import {
   updateOrderStatus,
 } from '../../api/admin';
 import { useAdminAuth } from '../../context/AdminAuthContext';
-import { formatPrice } from '../../components/ServiceCard';
-import { LoadingState } from '../../components/StateViews';
+import { formatPrice } from '../../components/user/ServiceCard';
+import { LoadingState } from '../../components/admin/StateViews';
 
 const ORDER_STATUSES = [
   'confirmed',

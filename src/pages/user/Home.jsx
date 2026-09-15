@@ -1,4 +1,4 @@
-import CTA from "../../components/common/CTA";
+import CTA from "../../components/user/CTA";
 import Seo from "../../components/common/Seo";
 import { motion } from 'framer-motion';
 

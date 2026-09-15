@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 import { getDashboardStats } from '../../api/admin';
-import { formatPrice } from '../../components/ServiceCard';
-import StatusPill from '../../components/StatusPill';
+import { formatPrice } from '../../components/user/ServiceCard';
+import StatusPill from '../../components/admin/StatusPill';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null);

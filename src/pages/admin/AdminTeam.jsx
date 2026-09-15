@@ -5,7 +5,7 @@ import {
   createTeamMember,
   updateTeamMember,
 } from '../../api/admin';
-import { LoadingState } from '../../components/StateViews';
+import { LoadingState } from '../../components/admin/StateViews';
 
 const EMPTY_FORM = {
   name: '',
