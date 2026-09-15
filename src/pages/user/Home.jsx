@@ -477,10 +477,26 @@ function PeopleIcon() {
 //PROCESS SECTION
 
 const STEPS = [
-  { step: '01', title: 'Pick your service', body: 'Browse marketing, AI video, or WhatsApp automation packages and choose what fits.' },
-  { step: '02', title: 'Choose a package', body: 'Every plan lists what\u2019s included and what it costs — pick the duration or tier that suits you.' },
-  { step: '03', title: 'Confirm & pay', body: 'Share your details and pay securely online. You\u2019ll get confirmation right away.' },
-  { step: '04', title: 'We launch your campaign', body: 'Our team gets to work — ads go live, creatives get delivered, automation gets set up.' },
+  {
+    step: '01',
+    title: 'Pick your service',
+    body: 'Browse marketing, AI video, or WhatsApp automation packages and choose what fits.',
+  },
+  {
+    step: '02',
+    title: 'Choose a package',
+    body: 'Every plan lists what’s included and what it costs — pick the duration or tier that suits you.',
+  },
+  {
+    step: '03',
+    title: 'Confirm & pay',
+    body: 'Share your details and pay securely online. You’ll get confirmation right away.',
+  },
+  {
+    step: '04',
+    title: 'We’ll contact you shortly',
+    body: 'Once your order is confirmed, our team will contact you shortly to discuss the services or items you selected and take things forward.',
+  },
 ];
 function Process() {
   return (

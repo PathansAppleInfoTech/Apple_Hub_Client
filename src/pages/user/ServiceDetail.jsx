@@ -391,9 +391,8 @@ function PurchasePanel({
 
           <div className="mt-5">
             <p
-              className={`font-display text-4xl font-extrabold tracking-tight ${
-                colors.price
-              } sm:text-5xl`}
+              className={`font-display text-4xl font-extrabold tracking-tight ${colors.price
+                } sm:text-5xl`}
             >
               {formatPrice(service)}
             </p>
@@ -409,21 +408,34 @@ function PurchasePanel({
           <div className="my-7 h-px bg-border" />
 
           <div className="space-y-3">
-            <a
-              href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
-                waMessage
-              )}`}
-              target="_blank"
-              rel="noreferrer"
-              className="group inline-flex w-full items-center justify-center gap-2 rounded-full bg-whatsapp px-6 py-3.5 text-sm font-bold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-whatsapp-deep hover:shadow-lg"
-            >
-              <WhatsAppIcon />
-              {isCustom
-                ? 'Enquire on WhatsApp'
-                : 'Buy via WhatsApp'}
+            {!isCustom ? (
+              <Link
+                to={`/checkout/${service.slug}`}
+                className="group inline-flex w-full items-center justify-center gap-2 rounded-full bg-ink px-6 py-3.5 text-sm font-bold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-brand-deep hover:shadow-lg"
+              >
+                Buy Now
+                <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            ) : (
 
-              <ArrowUpRightIcon className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-            </a>
+              <a
+
+                href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(
+                  waMessage
+                )}`}
+                target="_blank"
+                rel="noreferrer"
+                className="group inline-flex w-full items-center justify-center gap-2 rounded-full bg-whatsapp px-6 py-3.5 text-sm font-bold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-whatsapp-deep hover:shadow-lg"
+              >
+                <WhatsAppIcon />
+
+                {isCustom
+                  ? 'Enquire on WhatsApp'
+                  : 'Buy via WhatsApp'}
+
+                <ArrowUpRightIcon className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              </a>
+            )}
 
             <a
               href={`tel:${PHONE_TEL}`}
@@ -695,7 +707,7 @@ export default function ServiceDetail() {
 
       toast.error(
         err?.message ||
-          'Unable to load service details.'
+        'Unable to load service details.'
       );
     } finally {
       setLoading(false);
@@ -758,9 +770,9 @@ export default function ServiceDetail() {
       .filter(
         (item) =>
           String(item.id) !==
-            String(service.id) &&
+          String(service.id) &&
           String(item.category_id) ===
-            String(service.category_id)
+          String(service.category_id)
       )
       .slice(0, 3);
   }, [

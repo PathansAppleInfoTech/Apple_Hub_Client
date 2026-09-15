@@ -3,26 +3,22 @@ import toast from 'react-hot-toast';
 import {
   getOrders,
   updateOrderStatus,
-  assignOrder,
-  getTeam,
 } from '../../api/admin';
 import { useAdminAuth } from '../../context/AdminAuthContext';
 import { formatPrice } from '../../components/ServiceCard';
 import { LoadingState } from '../../components/StateViews';
 
 const ORDER_STATUSES = [
-  'pending',
   'confirmed',
-  'in_progress',
+  'processing',
   'completed',
-  'cancelled',
+  'refunded',
 ];
 
 export default function AdminOrders() {
   const { admin } = useAdminAuth();
 
   const [orders, setOrders] = useState([]);
-  const [team, setTeam] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -33,7 +29,6 @@ export default function AdminOrders() {
   const [detailOrder, setDetailOrder] = useState(null);
 
   const [updatingOrderId, setUpdatingOrderId] = useState(null);
-  const [assigningOrderId, setAssigningOrderId] = useState(null);
 
   const isAdmin = admin?.role === 'admin';
 
@@ -89,61 +84,17 @@ export default function AdminOrders() {
   }, [loadOrders]);
 
   /* ---------------------------------------------------------------------- */
-  /* Load Team                                                              */
-  /* ---------------------------------------------------------------------- */
-
-  useEffect(() => {
-    if (!isAdmin) return;
-
-    async function loadTeam() {
-      try {
-        console.log('[Orders] Loading team members...');
-
-        const data = await getTeam();
-
-        setTeam(Array.isArray(data) ? data : []);
-
-        console.log(
-          '[Orders] Team members loaded:',
-          Array.isArray(data) ? data.length : 0
-        );
-      } catch (error) {
-        console.error('[Orders] Failed to load team:', error);
-
-        toast.error(
-          error.message || 'Unable to load team members.'
-        );
-      }
-    }
-
-    loadTeam();
-  }, [isAdmin]);
-
-  /* ---------------------------------------------------------------------- */
   /* Stats                                                                  */
   /* ---------------------------------------------------------------------- */
 
   const stats = useMemo(() => {
     const total = orders.length;
+    const confirmed = orders.filter((order) => order.order_status === 'confirmed').length;
+    const processing = orders.filter((order) => order.order_status === 'processing').length;
+    const completed = orders.filter((order) => order.order_status === 'completed').length;
+    const refunded = orders.filter((order) => order.order_status === 'refunded').length;
 
-    const pending = orders.filter(
-      (order) => order.order_status === 'pending'
-    ).length;
-
-    const inProgress = orders.filter(
-      (order) => order.order_status === 'in_progress'
-    ).length;
-
-    const completed = orders.filter(
-      (order) => order.order_status === 'completed'
-    ).length;
-
-    return {
-      total,
-      pending,
-      inProgress,
-      completed,
-    };
+    return { total, confirmed, processing, completed, refunded };
   }, [orders]);
 
   /* ---------------------------------------------------------------------- */
@@ -180,40 +131,6 @@ export default function AdminOrders() {
     }
   }
 
-  /* ---------------------------------------------------------------------- */
-  /* Assignment                                                             */
-  /* ---------------------------------------------------------------------- */
-
-  async function handleAssign(order, staffId) {
-    setAssigningOrderId(order.id);
-
-    try {
-      console.log(
-        '[Orders] Updating assignment:',
-        order.id,
-        staffId || 'unassigned'
-      );
-
-      await assignOrder(order.id, staffId || null);
-
-      toast.success(
-        staffId
-          ? 'Order assigned successfully.'
-          : 'Order unassigned successfully.'
-      );
-
-      await loadOrders({ silent: true });
-    } catch (error) {
-      console.error('[Orders] Assignment update failed:', error);
-
-      toast.error(
-        error.message || 'Unable to update order assignment.'
-      );
-    } finally {
-      setAssigningOrderId(null);
-    }
-  }
-
   function clearFilters() {
     setSearch('');
     setStatusFilter('all');
@@ -239,7 +156,7 @@ export default function AdminOrders() {
 
               <p className="mt-0.5 text-sm text-ink-muted">
                 {isAdmin
-                  ? 'Manage customer orders, status and team assignments.'
+                  ? 'Manage customer orders and track order status.'
                   : 'View and manage the orders assigned to you.'}
               </p>
             </div>
@@ -261,34 +178,12 @@ export default function AdminOrders() {
       {/* Stats                                                              */}
       {/* ------------------------------------------------------------------ */}
 
-      <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Total Orders"
-          value={stats.total}
-          icon={<OrdersIcon />}
-          iconClass="bg-brand-soft text-brand"
-        />
-
-        <StatCard
-          label="Pending"
-          value={stats.pending}
-          icon={<ClockIcon />}
-          iconClass="bg-gold-soft text-gold"
-        />
-
-        <StatCard
-          label="In Progress"
-          value={stats.inProgress}
-          icon={<ProgressIcon />}
-          iconClass="bg-teal-soft text-teal-deep"
-        />
-
-        <StatCard
-          label="Completed"
-          value={stats.completed}
-          icon={<CheckIcon />}
-          iconClass="bg-whatsapp-soft text-whatsapp-deep"
-        />
+      <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <StatCard label="Total Orders" value={stats.total} icon={<OrdersIcon />} iconClass="bg-brand-soft text-brand" />
+        <StatCard label="Confirmed" value={stats.confirmed} icon={<CheckIcon />} iconClass="bg-brand-soft text-brand" />
+        <StatCard label="In Progress" value={stats.processing} icon={<ProgressIcon />} iconClass="bg-teal-soft text-teal-deep" />
+        <StatCard label="Completed" value={stats.completed} icon={<CheckIcon />} iconClass="bg-whatsapp-soft text-whatsapp-deep" />
+        <StatCard label="Refunded" value={stats.refunded} icon={<RefreshIcon />} iconClass="bg-coral-soft text-coral-deep" />
       </div>
 
       {/* ------------------------------------------------------------------ */}
@@ -314,11 +209,10 @@ export default function AdminOrders() {
 
             {[
               { value: 'all', label: 'All Orders' },
-              { value: 'pending', label: 'Pending' },
               { value: 'confirmed', label: 'Confirmed' },
-              { value: 'in_progress', label: 'In Progress' },
+              { value: 'processing', label: 'In Progress' },
               { value: 'completed', label: 'Completed' },
-              { value: 'cancelled', label: 'Cancelled' },
+              { value: 'refunded', label: 'Refunded' },
             ].map((filter) => {
               const active = statusFilter === filter.value;
 
@@ -432,12 +326,8 @@ export default function AdminOrders() {
                       <OrderTableRow
                         key={order.id}
                         order={order}
-                        team={team}
-                        isAdmin={isAdmin}
                         updating={updatingOrderId === order.id}
-                        assigning={assigningOrderId === order.id}
                         onStatusChange={handleStatusChange}
-                        onAssign={handleAssign}
                         onView={setDetailOrder}
                       />
                     ))}
@@ -452,12 +342,8 @@ export default function AdminOrders() {
                 <OrderMobileCard
                   key={order.id}
                   order={order}
-                  team={team}
-                  isAdmin={isAdmin}
                   updating={updatingOrderId === order.id}
-                  assigning={assigningOrderId === order.id}
                   onStatusChange={handleStatusChange}
-                  onAssign={handleAssign}
                   onView={setDetailOrder}
                 />
               ))}
@@ -516,12 +402,8 @@ function StatCard({ label, value, icon, iconClass }) {
 
 function OrderTableRow({
   order,
-  team,
-  isAdmin,
   updating,
-  assigning,
   onStatusChange,
-  onAssign,
   onView,
 }) {
   return (
@@ -577,18 +459,14 @@ function OrderTableRow({
       </td>
 
       <td className="px-5 py-4">
-        {isAdmin ? (
-          <AssignmentSelect
-            order={order}
-            team={team}
-            disabled={assigning}
-            onChange={(value) => onAssign(order, value)}
-          />
-        ) : (
-          <span className="text-xs text-ink-muted">
+        <div className="flex items-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-canvas-soft text-ink-muted">
+            <UserIcon size={15} />
+          </span>
+          <span className="max-w-[150px] truncate text-xs font-medium text-ink-muted">
             {order.assigned_to_name || 'Unassigned'}
           </span>
-        )}
+        </div>
       </td>
 
       <td className="px-5 py-4 text-right">
@@ -611,12 +489,8 @@ function OrderTableRow({
 
 function OrderMobileCard({
   order,
-  team,
-  isAdmin,
   updating,
-  assigning,
   onStatusChange,
-  onAssign,
   onView,
 }) {
   return (
@@ -714,19 +588,15 @@ function OrderMobileCard({
             Assigned To
           </p>
 
-          {isAdmin ? (
-            <AssignmentSelect
-              order={order}
-              team={team}
-              disabled={assigning}
-              onChange={(value) => onAssign(order, value)}
-              fullWidth
-            />
-          ) : (
-            <div className="flex h-10 items-center rounded-xl border border-border bg-white px-3 text-xs text-ink-muted">
+          <div className="flex h-10 items-center gap-2 rounded-xl border border-border bg-canvas-soft px-3 text-xs font-medium text-ink-muted">
+            <UserIcon size={15} />
+            <span className="truncate">
               {order.assigned_to_name || 'Unassigned'}
-            </div>
-          )}
+            </span>
+          </div>
+          <p className="mt-1 text-[10px] text-ink-faint">
+            Assignment is automatic and cannot be changed.
+          </p>
         </div>
       </div>
 
@@ -775,39 +645,6 @@ function StatusSelect({
 }
 
 /* ========================================================================== */
-/* ASSIGNMENT SELECT                                                          */
-/* ========================================================================== */
-
-function AssignmentSelect({
-  order,
-  team,
-  disabled,
-  onChange,
-  fullWidth = false,
-}) {
-  return (
-    <div className={`relative ${fullWidth ? 'w-full' : 'w-[145px]'}`}>
-      <select
-        value={order.assigned_to || ''}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-10 w-full appearance-none rounded-xl border border-border bg-white px-3 pr-8 text-xs font-medium text-ink outline-none transition focus:border-brand/40 focus:ring-4 focus:ring-brand/10 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        <option value="">Unassigned</option>
-
-        {team.map((member) => (
-          <option key={member.id} value={member.id}>
-            {member.name}
-          </option>
-        ))}
-      </select>
-
-      <ChevronIcon />
-    </div>
-  );
-}
-
-/* ========================================================================== */
 /* PAYMENT BADGE                                                              */
 /* ========================================================================== */
 
@@ -818,20 +655,10 @@ function PaymentBadge({ status }) {
       className: 'bg-whatsapp-soft text-whatsapp-deep',
       dot: 'bg-whatsapp',
     },
-    pending: {
-      label: 'Pending',
-      className: 'bg-gold-soft text-gold',
-      dot: 'bg-gold',
-    },
-    failed: {
-      label: 'Failed',
-      className: 'bg-coral-soft text-coral-deep',
-      dot: 'bg-coral',
-    },
     refunded: {
       label: 'Refunded',
-      className: 'bg-teal-soft text-teal-deep',
-      dot: 'bg-teal',
+      className: 'bg-coral-soft text-coral-deep',
+      dot: 'bg-coral',
     },
   };
 
@@ -857,15 +684,11 @@ function PaymentBadge({ status }) {
 
 function StatusBadge({ status }) {
   const config = {
-    pending: {
-      className: 'bg-gold-soft text-gold',
-      dot: 'bg-gold',
-    },
     confirmed: {
       className: 'bg-brand-soft text-brand',
       dot: 'bg-brand',
     },
-    in_progress: {
+    processing: {
       className: 'bg-teal-soft text-teal-deep',
       dot: 'bg-teal',
     },
@@ -873,7 +696,7 @@ function StatusBadge({ status }) {
       className: 'bg-whatsapp-soft text-whatsapp-deep',
       dot: 'bg-whatsapp',
     },
-    cancelled: {
+    refunded: {
       className: 'bg-coral-soft text-coral-deep',
       dot: 'bg-coral',
     },
@@ -1047,6 +870,45 @@ function OrderDetailsModal({ order, onClose }) {
               value={formatDateTime(order.created_at)}
             />
           </DetailSection>
+
+          {/* Payment Details */}
+          <DetailSection
+            title="Payment Details"
+            icon={<PaymentIcon />}
+          >
+            <DetailRow
+              label="Payment Status"
+              value={formatStatus(order.payment_status)}
+              strong
+            />
+
+            <DetailRow
+              label="Payment Method"
+              value={
+                order.payment_method
+                  ? formatStatus(order.payment_method)
+                  : 'Razorpay'
+              }
+            />
+
+            <DetailRow
+              label="Payment ID"
+              value={order.razorpay_payment_id || 'Not available'}
+              multiline
+            />
+
+            <DetailRow
+              label="Razorpay Order ID"
+              value={order.razorpay_order_id || 'Not available'}
+              multiline
+            />
+
+            <DetailRow
+              label="Amount Paid"
+              value={formatPrice(order.amount)}
+              strong
+            />
+          </DetailSection>
         </div>
 
         {/* Footer */}
@@ -1063,6 +925,26 @@ function OrderDetailsModal({ order, onClose }) {
     </div>
   );
 }
+
+function PaymentIcon({ size = 17 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 10h18" />
+      <path d="M7 15h3" />
+    </svg>
+  );
+}
+
 
 /* ========================================================================== */
 /* DETAIL SECTION                                                             */
@@ -1128,7 +1010,17 @@ function DetailRow({
 function formatStatus(status) {
   if (!status) return 'Unknown';
 
-  return status
+  const normalized = String(status).toLowerCase();
+
+  const labels = {
+    confirmed: 'Confirmed',
+    processing: 'In Progress',
+    completed: 'Completed',
+    refunded: 'Refunded',
+    paid: 'Paid',
+  };
+
+  return labels[normalized] || normalized
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
@@ -1199,24 +1091,6 @@ function UserIcon({ size = 17 }) {
     >
       <circle cx="12" cy="8" r="3.5" />
       <path d="M5 20c.8-3.3 3.1-5 7-5s6.2 1.7 7 5" />
-    </svg>
-  );
-}
-
-function ClockIcon({ size = 18 }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v5l3 2" />
     </svg>
   );
 }

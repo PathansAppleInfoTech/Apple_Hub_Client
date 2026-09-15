@@ -4,7 +4,6 @@ import toast from 'react-hot-toast';
 
 import { getDashboardStats } from '../../api/admin';
 import { formatPrice } from '../../components/ServiceCard';
-import { LoadingState } from '../../components/StateViews';
 import StatusPill from '../../components/StatusPill';
 
 export default function AdminDashboard() {
@@ -51,14 +50,41 @@ export default function AdminDashboard() {
     };
   }, []);
 
-  const statusTotals = useMemo(() => {
-    if (!stats?.statusSummary?.length) return 0;
+  const allowedStatuses = ['confirmed', 'processing', 'completed', 'refunded'];
 
-    return stats.statusSummary.reduce(
-      (total, item) => total + Number(item.total || 0),
-      0
+  const statusCounts = useMemo(() => {
+    const counts = {
+      confirmed: 0,
+      processing: 0,
+      completed: 0,
+      refunded: 0,
+    };
+
+    for (const item of stats?.statusSummary || []) {
+      const status = String(item.order_status || '').toLowerCase();
+
+      if (allowedStatuses.includes(status)) {
+        counts[status] = Number(item.total || 0);
+      }
+    }
+
+    return counts;
+  }, [stats]);
+
+  const filteredStatusSummary = useMemo(() => {
+    return (stats?.statusSummary || []).filter((item) =>
+      allowedStatuses.includes(
+        String(item.order_status || '').toLowerCase()
+      )
     );
   }, [stats]);
+
+  const statusTotals = useMemo(() => {
+    return Object.values(statusCounts).reduce(
+      (total, value) => total + Number(value || 0),
+      0
+    );
+  }, [statusCounts]);
 
   if (status === 'loading') {
     return (
@@ -85,32 +111,25 @@ export default function AdminDashboard() {
       className: 'bg-brand-soft text-brand',
     },
     {
-      label: 'Total Orders',
-      value: stats.totalOrders ?? 0,
-      icon: OrdersIcon,
-      description: 'All orders',
+      label: 'Total Categories',
+      value: stats.totalCategories ?? 0,
+      icon: CategoriesIcon,
+      description: 'Active categories',
       className: 'bg-teal-soft text-teal',
     },
     {
-      label: 'Pending Orders',
-      value: stats.pendingOrders ?? 0,
-      icon: ClockIcon,
-      description: 'Need attention',
-      className: 'bg-gold-soft text-gold',
-    },
-    {
-      label: 'Completed Orders',
-      value: stats.completedOrders ?? 0,
-      icon: CheckIcon,
-      description: 'Successfully delivered',
-      className: 'bg-whatsapp-soft text-whatsapp',
+      label: 'Total Orders',
+      value: stats.totalOrders ?? 0,
+      icon: OrdersIcon,
+      description: 'All customer orders',
+      className: 'bg-coral-soft text-coral',
     },
     {
       label: 'Revenue',
       value: formatPrice(stats.revenue ?? 0),
       icon: RevenueIcon,
-      description: 'Total order revenue',
-      className: 'bg-coral-soft text-coral',
+      description: 'Total paid revenue',
+      className: 'bg-gold-soft text-gold',
       featured: true,
     },
   ];
@@ -155,7 +174,7 @@ export default function AdminDashboard() {
       {/* --------------------------------------------------
           Stats
       -------------------------------------------------- */}
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
           <StatCard
             key={card.label}
@@ -288,12 +307,12 @@ export default function AdminDashboard() {
           </div>
 
           <div className="mt-7 space-y-5">
-            {stats.statusSummary?.length === 0 ? (
+            {filteredStatusSummary.length === 0 ? (
               <p className="rounded-xl bg-canvas-soft px-4 py-6 text-center text-sm text-ink-muted">
                 No orders yet.
               </p>
             ) : (
-              stats.statusSummary.map((item) => (
+              filteredStatusSummary.map((item) => (
                 <StatusRow
                   key={item.order_status}
                   status={item.order_status}
@@ -401,6 +420,25 @@ function StatCard({
   );
 }
 
+function getDisplayStatus(status) {
+  const normalized = String(status || '').toLowerCase();
+
+  if (normalized === 'pending') return 'confirmed';
+
+  if (allowedOrderStatuses.includes(normalized)) {
+    return normalized;
+  }
+
+  return 'confirmed';
+}
+
+const allowedOrderStatuses = [
+  'confirmed',
+  'processing',
+  'completed',
+  'refunded',
+];
+
 /* =========================================================
    Recent Order - Desktop
 ========================================================= */
@@ -433,7 +471,7 @@ function RecentOrderRow({ order }) {
       </td>
 
       <td className="px-6 py-4 text-right">
-        <StatusPill status={order.order_status} />
+        <StatusPill status={getDisplayStatus(order.order_status)} />
       </td>
     </tr>
   );
@@ -467,7 +505,7 @@ function MobileOrderCard({ order }) {
           </p>
 
           <div className="mt-2">
-            <StatusPill status={order.order_status} />
+            <StatusPill status={getDisplayStatus(order.order_status)} />
           </div>
         </div>
       </div>
@@ -744,27 +782,6 @@ function CategoriesIcon() {
         rx="1"
         stroke="currentColor"
         strokeWidth="1.7"
-      />
-    </svg>
-  );
-}
-
-function ClockIcon() {
-  return (
-    <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
-      <circle
-        cx="12"
-        cy="12"
-        r="8.5"
-        stroke="currentColor"
-        strokeWidth="1.7"
-      />
-      <path
-        d="M12 7v5l3 2"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
       />
     </svg>
   );

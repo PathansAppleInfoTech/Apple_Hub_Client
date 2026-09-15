@@ -165,6 +165,7 @@ function ContactChannels() {
 
 const SERVICE_OPTIONS = [
     'Facebook & Instagram Marketing',
+    'Social Media Management',
     'AI Video Ads',
     'WhatsApp Business Software',
     'Something else',
@@ -180,16 +181,25 @@ function ContactFormSection() {
 
     function handleSubmit(e) {
         e.preventDefault();
-        const subject = `New enquiry from ${form.name || 'website visitor'} — ${form.service}`;
-        const body = [
-            `Name: ${form.name}`,
-            `Email: ${form.email}`,
-            `Phone: ${form.phone}`,
-            `Service: ${form.service}`,
-            '',
-            form.message,
+
+        const message = [
+            'NEW WEBSITE ENQUIRY',
+            '────────────────────────',
+            `Name: ${form.name || 'Not provided'}`,
+            `Email: ${form.email || 'Not provided'}`,
+            `Phone: ${form.phone || 'Not provided'}`,
+            `Service: ${form.service || 'Not selected'}`,
+            '────────────────────────',
+            'Message:',
+            form.message || 'No message provided',
+            '────────────────────────',
+            'Received via Apple Hub By Pathans Apple Info Tech',
+            'https://ecom.pathansapple.com'
         ].join('\n');
-        window.location.href = `mailto:${EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+        const whatsappUrl = `https://wa.me/${PHONE_TEL.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
+
+        window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
     }
 
     return (

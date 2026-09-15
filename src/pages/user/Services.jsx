@@ -227,7 +227,7 @@ function FilterBar({
   setActiveCategory,
   categories,
   counts,
-  total,
+  services,
 }) {
   return (
     <div className="sticky top-0 z-10 -mx-6 border-y border-border bg-white/90 px-6 py-4 backdrop-blur">
@@ -250,7 +250,7 @@ function FilterBar({
             onClick={() => setActiveCategory('all')}
             colorClass="bg-ink text-white border-ink"
           >
-            All ({total})
+            All ({services.length})
           </FilterPill>
 
           {categories.map((category) => {
@@ -289,8 +289,8 @@ function FilterPill({
       type="button"
       onClick={onClick}
       className={`rounded-full border px-4 py-2 text-xs font-semibold transition-colors ${active
-          ? colorClass
-          : 'border-border bg-white text-ink-muted hover:border-ink/20'
+        ? colorClass
+        : 'border-border bg-white text-ink-muted hover:border-ink/20'
         }`}
     >
       {children}
@@ -816,7 +816,7 @@ export default function Services() {
             setActiveCategory={setActiveCategory}
             categories={categories}
             counts={counts}
-            total={filteredServices.length}
+            services={services}
           />
 
           {loading ? (

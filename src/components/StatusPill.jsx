@@ -12,7 +12,7 @@ const STYLES = {
 const LABELS = {
   pending: 'Pending',
   confirmed: 'Confirmed',
-  in_progress: 'In Progress',
+  processing: 'In Progress',
   completed: 'Completed',
   cancelled: 'Cancelled',
   paid: 'Paid',

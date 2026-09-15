@@ -5,6 +5,8 @@ import SiteLayout from './layouts/SiteLayout';
 import AdminLayout from './layouts/AdminLayout';
 
 import Home from './pages/user/Home';
+import About from './pages/user/About';
+import Contact from './pages/user/Contact'
 import Services from './pages/user/Services';
 import ServiceDetail from './pages/user/ServiceDetail';
 import Checkout from './pages/user/Checkout';
@@ -16,8 +18,7 @@ import AdminServices from './pages/admin/AdminServices';
 import AdminCategories from './pages/admin/AdminCategories';
 import AdminOrders from './pages/admin/AdminOrders';
 import AdminTeam from './pages/admin/AdminTeam';
-import About from './pages/user/About';
-import Contact from './pages/user/Contact';
+;
 import { Toaster } from 'react-hot-toast';
 
 export default function App() {
