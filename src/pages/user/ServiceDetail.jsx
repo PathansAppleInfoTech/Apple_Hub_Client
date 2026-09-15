@@ -5,9 +5,9 @@ import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 
 import {
-  getAllServices,
-  getAllCategories,
-} from '../../api/admin';
+  getServices,
+  getCategories,
+} from '../../api/services';
 
 const PHONE_DISPLAY = '+91 79077 04987';
 const PHONE_TEL = '+917907704987';
@@ -648,8 +648,8 @@ export default function ServiceDetail() {
         servicesData,
         categoriesData,
       ] = await Promise.all([
-        getAllServices(),
-        getAllCategories(),
+        getServices(),
+        getCategories(),
       ]);
 
       const rawCategories =
