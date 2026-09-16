@@ -193,7 +193,7 @@ export default function Checkout() {
         key: payment.key_id,
         amount: Math.round(Number(payment.amount) * 100),
         currency: payment.currency || 'INR',
-        name: 'Apple Hub',
+        name: 'Apple Hub by Pathans Apple Info Tech',
         description: service.title || 'Service Purchase',
         order_id: payment.gateway_order_id,
 
