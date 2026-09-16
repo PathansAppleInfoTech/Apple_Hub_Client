@@ -11,9 +11,27 @@ const EMPTY_FORM = {
   name: '',
   email: '',
   password: '',
-  role: 'staff',
+  role: 'executive',
   is_active: 1,
 };
+
+const ROLES = [
+  {
+    value: 'admin',
+    label: 'Admin',
+    description: 'Full dashboard access',
+  },
+  {
+    value: 'executive',
+    label: 'Executive',
+    description: 'Manage assigned orders',
+  },
+  {
+    value: 'technical',
+    label: 'Technical',
+    description: 'Handle technical services',
+  },
+];
 
 export default function AdminTeam() {
   const [team, setTeam] = useState([]);
@@ -37,21 +55,14 @@ export default function AdminTeam() {
     }
 
     try {
-      console.log('[Team] Loading team members...');
-
       const data = await getTeam();
-
       setTeam(Array.isArray(data) ? data : []);
-
-      console.log(
-        '[Team] Team members loaded:',
-        Array.isArray(data) ? data.length : 0
-      );
     } catch (error) {
       console.error('[Team] Failed to load team:', error);
 
       toast.error(
-        error.message || 'Unable to load team members. Please try again.'
+        error.message ||
+          'Unable to load team members. Please try again.'
       );
     } finally {
       setLoading(false);
@@ -78,15 +89,20 @@ export default function AdminTeam() {
       (member) => member.role === 'admin'
     ).length;
 
-    const staff = team.filter(
-      (member) => member.role === 'staff'
+    const executives = team.filter(
+      (member) => member.role === 'executive'
+    ).length;
+
+    const technical = team.filter(
+      (member) => member.role === 'technical'
     ).length;
 
     return {
       total,
       active,
       admins,
-      staff,
+      executives,
+      technical,
     };
   }, [team]);
 
@@ -107,14 +123,19 @@ export default function AdminTeam() {
         roleFilter === 'all' ||
         member.role === roleFilter;
 
-      const isActive = Number(member.is_active) === 1;
+      const isActive =
+        Number(member.is_active) === 1;
 
       const matchesStatus =
         statusFilter === 'all' ||
         (statusFilter === 'active' && isActive) ||
         (statusFilter === 'inactive' && !isActive);
 
-      return matchesSearch && matchesRole && matchesStatus;
+      return (
+        matchesSearch &&
+        matchesRole &&
+        matchesStatus
+      );
     });
   }, [team, search, roleFilter, statusFilter]);
 
@@ -129,24 +150,25 @@ export default function AdminTeam() {
   /* ---------------------------------------------------------------------- */
 
   function openCreate() {
-    console.log('[Team] Opening create member modal');
-
     setEditing(null);
     setForm(EMPTY_FORM);
     setModalOpen(true);
   }
 
   function openEdit(member) {
-    console.log('[Team] Editing member:', member.id);
-
     setEditing(member);
 
     setForm({
       name: member.name || '',
       email: member.email || '',
       password: '',
-      role: member.role || 'staff',
-      is_active: Number(member.is_active) === 1 ? 1 : 0,
+      role: ROLES.some(
+        (role) => role.value === member.role
+      )
+        ? member.role
+        : 'executive',
+      is_active:
+        Number(member.is_active) === 1 ? 1 : 0,
     });
 
     setModalOpen(true);
@@ -169,6 +191,13 @@ export default function AdminTeam() {
     }));
   }
 
+  function handleRoleChange(role) {
+    setForm((current) => ({
+      ...current,
+      role,
+    }));
+  }
+
   function handleStatusChange(e) {
     setForm((current) => ({
       ...current,
@@ -188,41 +217,63 @@ export default function AdminTeam() {
     const password = form.password;
 
     if (!name) {
-      toast.error('Please enter the team member name.');
+      toast.error(
+        'Please enter the team member name.'
+      );
       return;
     }
 
     if (name.length < 2) {
-      toast.error('Name must be at least 2 characters.');
+      toast.error(
+        'Name must be at least 2 characters.'
+      );
       return;
     }
 
     if (!email) {
-      toast.error('Please enter an email address.');
+      toast.error(
+        'Please enter an email address.'
+      );
       return;
     }
 
     if (!isValidEmail(email)) {
-      toast.error('Please enter a valid email address.');
+      toast.error(
+        'Please enter a valid email address.'
+      );
       return;
     }
 
     if (!editing && !password) {
-      toast.error('Please create a password for this team member.');
+      toast.error(
+        'Please create a password for this team member.'
+      );
       return;
     }
 
     if (!editing && password.length < 8) {
-      toast.error('Password must be at least 8 characters.');
+      toast.error(
+        'Password must be at least 8 characters.'
+      );
       return;
     }
 
-    if (editing && password && password.length < 8) {
-      toast.error('New password must be at least 8 characters.');
+    if (
+      editing &&
+      password &&
+      password.length < 8
+    ) {
+      toast.error(
+        'New password must be at least 8 characters.'
+      );
       return;
     }
 
-    if (!['admin', 'staff'].includes(form.role)) {
+    if (
+      !ROLES.some(
+        (role) => role.value === form.role
+      )
+    ) {
       toast.error('Please select a valid role.');
       return;
     }
@@ -244,11 +295,14 @@ export default function AdminTeam() {
           payload.password = password;
         }
 
-        console.log('[Team] Updating member:', editing.id);
+        await updateTeamMember(
+          editing.id,
+          payload
+        );
 
-        await updateTeamMember(editing.id, payload);
-
-        toast.success('Team member updated successfully.');
+        toast.success(
+          'Team member updated successfully.'
+        );
       } else {
         const payload = {
           name,
@@ -258,21 +312,26 @@ export default function AdminTeam() {
           is_active: Number(form.is_active),
         };
 
-        console.log('[Team] Creating team member:', email);
-
         await createTeamMember(payload);
 
-        toast.success('Team member added successfully.');
+        toast.success(
+          'Team member added successfully.'
+        );
       }
 
       closeModal();
       await loadData({ silent: true });
     } catch (error) {
-      console.error('[Team] Save failed:', error);
+      console.error(
+        '[Team] Save failed:',
+        error
+      );
 
       toast.error(
         error.message ||
-          `Unable to ${editing ? 'update' : 'add'} team member.`
+          `Unable to ${
+            editing ? 'update' : 'add'
+          } team member.`
       );
     } finally {
       setSaving(false);
@@ -281,10 +340,7 @@ export default function AdminTeam() {
 
   return (
     <div className="min-w-0">
-      {/* ------------------------------------------------------------------ */}
-      {/* Header                                                             */}
-      {/* ------------------------------------------------------------------ */}
-
+      {/* Header */}
       <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -298,7 +354,8 @@ export default function AdminTeam() {
               </h1>
 
               <p className="mt-0.5 text-sm text-ink-muted">
-                Manage the admins and staff who access your dashboard.
+                Manage Admin, Executive and Technical
+                team members.
               </p>
             </div>
           </div>
@@ -307,12 +364,16 @@ export default function AdminTeam() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => loadData({ silent: true })}
+            onClick={() =>
+              loadData({ silent: true })
+            }
             disabled={refreshing}
             className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 text-sm font-semibold text-ink-muted shadow-sm transition hover:border-brand/20 hover:bg-brand-softer hover:text-brand disabled:cursor-not-allowed disabled:opacity-60"
           >
             <RefreshIcon spinning={refreshing} />
-            {refreshing ? 'Refreshing...' : 'Refresh'}
+            {refreshing
+              ? 'Refreshing...'
+              : 'Refresh'}
           </button>
 
           <button
@@ -326,23 +387,13 @@ export default function AdminTeam() {
         </div>
       </div>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Stats                                                              */}
-      {/* ------------------------------------------------------------------ */}
-
+      {/* Stats */}
       <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Total Members"
           value={stats.total}
           icon={<TeamIcon />}
           iconClass="bg-brand-soft text-brand"
-        />
-
-        <StatCard
-          label="Active Members"
-          value={stats.active}
-          icon={<CheckIcon />}
-          iconClass="bg-whatsapp-soft text-whatsapp-deep"
         />
 
         <StatCard
@@ -353,85 +404,113 @@ export default function AdminTeam() {
         />
 
         <StatCard
-          label="Staff Members"
-          value={stats.staff}
+          label="Executives"
+          value={stats.executives}
           icon={<UserIcon />}
           iconClass="bg-teal-soft text-teal-deep"
         />
+
+        <StatCard
+          label="Technical"
+          value={stats.technical}
+          icon={<TechnicalIcon />}
+          iconClass="bg-brand-soft text-brand"
+        />
       </div>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Filters                                                            */}
-      {/* ------------------------------------------------------------------ */}
-
+      {/* Filters */}
       <div className="mt-7 rounded-2xl border border-border bg-surface p-4 shadow-sm shadow-ink/[0.025] sm:p-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          {/* Search */}
           <div className="relative w-full xl:max-w-md">
             <SearchIcon />
 
             <input
               type="search"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
               placeholder="Search by name or email..."
               className="h-11 w-full rounded-xl border border-border bg-canvas-soft pl-10 pr-4 text-sm text-ink outline-none transition placeholder:text-ink-faint focus:border-brand/40 focus:bg-white focus:ring-4 focus:ring-brand/10"
             />
           </div>
 
-          {/* Filters */}
           <div className="flex gap-2 overflow-x-auto">
             <FilterGroup
               label="All Roles"
-              value="all"
               active={roleFilter === 'all'}
-              onClick={() => setRoleFilter('all')}
+              onClick={() =>
+                setRoleFilter('all')
+              }
             />
 
             <FilterGroup
-              label="Admins"
-              value="admin"
+              label="Admin"
               active={roleFilter === 'admin'}
-              onClick={() => setRoleFilter('admin')}
+              onClick={() =>
+                setRoleFilter('admin')
+              }
             />
 
             <FilterGroup
-              label="Staff"
-              value="staff"
-              active={roleFilter === 'staff'}
-              onClick={() => setRoleFilter('staff')}
+              label="Executive"
+              active={
+                roleFilter === 'executive'
+              }
+              onClick={() =>
+                setRoleFilter('executive')
+              }
+            />
+
+            <FilterGroup
+              label="Technical"
+              active={
+                roleFilter === 'technical'
+              }
+              onClick={() =>
+                setRoleFilter('technical')
+              }
             />
 
             <div className="mx-1 h-10 w-px shrink-0 bg-border" />
 
             <FilterGroup
               label="Active"
-              value="active"
-              active={statusFilter === 'active'}
+              active={
+                statusFilter === 'active'
+              }
               onClick={() =>
                 setStatusFilter(
-                  statusFilter === 'active' ? 'all' : 'active'
+                  statusFilter === 'active'
+                    ? 'all'
+                    : 'active'
                 )
               }
             />
 
             <FilterGroup
               label="Inactive"
-              value="inactive"
-              active={statusFilter === 'inactive'}
+              active={
+                statusFilter === 'inactive'
+              }
               onClick={() =>
                 setStatusFilter(
-                  statusFilter === 'inactive' ? 'all' : 'inactive'
+                  statusFilter === 'inactive'
+                    ? 'all'
+                    : 'inactive'
                 )
               }
             />
           </div>
         </div>
 
-        {(search || roleFilter !== 'all' || statusFilter !== 'all') && (
+        {(search ||
+          roleFilter !== 'all' ||
+          statusFilter !== 'all') && (
           <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
             <p className="text-xs text-ink-muted">
-              Showing {filteredTeam.length} of {team.length} members
+              Showing {filteredTeam.length} of{' '}
+              {team.length} members
             </p>
 
             <button
@@ -445,10 +524,7 @@ export default function AdminTeam() {
         )}
       </div>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Team List                                                          */}
-      {/* ------------------------------------------------------------------ */}
-
+      {/* Team List */}
       <div className="mt-5">
         {loading ? (
           <div className="rounded-2xl border border-border bg-surface">
@@ -476,7 +552,9 @@ export default function AdminTeam() {
 
                   <p className="mt-0.5 text-xs text-ink-muted">
                     {filteredTeam.length} member
-                    {filteredTeam.length === 1 ? '' : 's'}
+                    {filteredTeam.length === 1
+                      ? ''
+                      : 's'}
                   </p>
                 </div>
               </div>
@@ -504,13 +582,15 @@ export default function AdminTeam() {
                   </thead>
 
                   <tbody className="divide-y divide-border">
-                    {filteredTeam.map((member) => (
-                      <TeamTableRow
-                        key={member.id}
-                        member={member}
-                        onEdit={openEdit}
-                      />
-                    ))}
+                    {filteredTeam.map(
+                      (member) => (
+                        <TeamTableRow
+                          key={member.id}
+                          member={member}
+                          onEdit={openEdit}
+                        />
+                      )
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -518,28 +598,28 @@ export default function AdminTeam() {
 
             {/* Mobile */}
             <div className="space-y-3 md:hidden">
-              {filteredTeam.map((member) => (
-                <TeamMobileCard
-                  key={member.id}
-                  member={member}
-                  onEdit={openEdit}
-                />
-              ))}
+              {filteredTeam.map(
+                (member) => (
+                  <TeamMobileCard
+                    key={member.id}
+                    member={member}
+                    onEdit={openEdit}
+                  />
+                )
+              )}
             </div>
           </>
         )}
       </div>
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Add / Edit Modal                                                   */}
-      {/* ------------------------------------------------------------------ */}
-
+      {/* Modal */}
       {modalOpen && (
         <TeamMemberModal
           editing={editing}
           form={form}
           saving={saving}
           onChange={handleChange}
+          onRoleChange={handleRoleChange}
           onStatusChange={handleStatusChange}
           onClose={closeModal}
           onSubmit={handleSave}
@@ -553,7 +633,12 @@ export default function AdminTeam() {
 /* STAT CARD                                                                  */
 /* ========================================================================== */
 
-function StatCard({ label, value, icon, iconClass }) {
+function StatCard({
+  label,
+  value,
+  icon,
+  iconClass,
+}) {
   return (
     <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm shadow-ink/[0.025] transition hover:-translate-y-0.5 hover:shadow-md">
       <div className="flex items-center justify-between">
@@ -583,7 +668,11 @@ function StatCard({ label, value, icon, iconClass }) {
 /* FILTER BUTTON                                                              */
 /* ========================================================================== */
 
-function FilterGroup({ label, active, onClick }) {
+function FilterGroup({
+  label,
+  active,
+  onClick,
+}) {
   return (
     <button
       type="button"
@@ -603,14 +692,21 @@ function FilterGroup({ label, active, onClick }) {
 /* DESKTOP ROW                                                                */
 /* ========================================================================== */
 
-function TeamTableRow({ member, onEdit }) {
-  const active = Number(member.is_active) === 1;
+function TeamTableRow({
+  member,
+  onEdit,
+}) {
+  const active =
+    Number(member.is_active) === 1;
 
   return (
     <tr className="group transition hover:bg-canvas-soft/50">
       <td className="px-5 py-4">
         <div className="flex items-center gap-3">
-          <Avatar name={member.name} role={member.role} />
+          <Avatar
+            name={member.name}
+            role={member.role}
+          />
 
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-ink">
@@ -650,14 +746,22 @@ function TeamTableRow({ member, onEdit }) {
 /* MOBILE CARD                                                                */
 /* ========================================================================== */
 
-function TeamMobileCard({ member, onEdit }) {
-  const active = Number(member.is_active) === 1;
+function TeamMobileCard({
+  member,
+  onEdit,
+}) {
+  const active =
+    Number(member.is_active) === 1;
 
   return (
     <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm shadow-ink/[0.025]">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <Avatar name={member.name} role={member.role} size="large" />
+          <Avatar
+            name={member.name}
+            role={member.role}
+            size="large"
+          />
 
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-ink">
@@ -693,19 +797,28 @@ function TeamMobileCard({ member, onEdit }) {
 /* AVATAR                                                                     */
 /* ========================================================================== */
 
-function Avatar({ name, role, size = 'normal' }) {
+function Avatar({
+  name,
+  role,
+  size = 'normal',
+}) {
   const initials = getInitials(name);
 
   const isAdmin = role === 'admin';
+  const isTechnical = role === 'technical';
 
   return (
     <span
       className={`flex shrink-0 items-center justify-center rounded-xl font-display font-semibold ${
-        size === 'large' ? 'h-11 w-11 text-sm' : 'h-10 w-10 text-xs'
+        size === 'large'
+          ? 'h-11 w-11 text-sm'
+          : 'h-10 w-10 text-xs'
       } ${
         isAdmin
           ? 'bg-brand-soft text-brand'
-          : 'bg-teal-soft text-teal-deep'
+          : isTechnical
+            ? 'bg-gold-soft text-gold'
+            : 'bg-teal-soft text-teal-deep'
       }`}
     >
       {initials}
@@ -718,19 +831,35 @@ function Avatar({ name, role, size = 'normal' }) {
 /* ========================================================================== */
 
 function RoleBadge({ role }) {
-  const isAdmin = role === 'admin';
+  const config = {
+    admin: {
+      label: 'Admin',
+      icon: <ShieldIcon size={12} />,
+      className: 'bg-brand-soft text-brand',
+    },
+
+    executive: {
+      label: 'Executive',
+      icon: <UserIcon size={12} />,
+      className: 'bg-teal-soft text-teal-deep',
+    },
+
+    technical: {
+      label: 'Technical',
+      icon: <TechnicalIcon size={12} />,
+      className: 'bg-gold-soft text-gold',
+    },
+  };
+
+  const current =
+    config[role] || config.executive;
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-        isAdmin
-          ? 'bg-brand-soft text-brand'
-          : 'bg-teal-soft text-teal-deep'
-      }`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${current.className}`}
     >
-      {isAdmin ? <ShieldIcon size={12} /> : <UserIcon size={12} />}
-
-      {isAdmin ? 'Administrator' : 'Staff'}
+      {current.icon}
+      {current.label}
     </span>
   );
 }
@@ -750,7 +879,9 @@ function StatusBadge({ active }) {
     >
       <span
         className={`h-1.5 w-1.5 rounded-full ${
-          active ? 'bg-whatsapp' : 'bg-ink-faint'
+          active
+            ? 'bg-whatsapp'
+            : 'bg-ink-faint'
         }`}
       />
 
@@ -763,7 +894,11 @@ function StatusBadge({ active }) {
 /* EMPTY STATE                                                                */
 /* ========================================================================== */
 
-function EmptyTeam({ hasFilters, onClear, onCreate }) {
+function EmptyTeam({
+  hasFilters,
+  onClear,
+  onCreate,
+}) {
   return (
     <div className="rounded-2xl border border-border bg-surface px-6 py-14 text-center shadow-sm shadow-ink/[0.025]">
       <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-soft text-brand">
@@ -771,13 +906,15 @@ function EmptyTeam({ hasFilters, onClear, onCreate }) {
       </span>
 
       <h3 className="mt-5 font-display text-base font-semibold text-ink">
-        {hasFilters ? 'No team members found' : 'No team members yet'}
+        {hasFilters
+          ? 'No team members found'
+          : 'No team members yet'}
       </h3>
 
       <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-ink-muted">
         {hasFilters
           ? 'Try changing your search or filters to find a team member.'
-          : 'Add your first team member so orders can be assigned to your staff.'}
+          : 'Add your first team member so orders can be assigned to your team.'}
       </p>
 
       <div className="mt-5 flex justify-center">
@@ -813,23 +950,34 @@ function TeamMemberModal({
   form,
   saving,
   onChange,
+  onRoleChange,
   onStatusChange,
   onClose,
   onSubmit,
 }) {
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword] =
+    useState(false);
 
   useEffect(() => {
     function handleKeyDown(e) {
-      if (e.key === 'Escape' && !saving) {
+      if (
+        e.key === 'Escape' &&
+        !saving
+      ) {
         onClose();
       }
     }
 
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener(
+      'keydown',
+      handleKeyDown
+    );
 
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener(
+        'keydown',
+        handleKeyDown
+      );
     };
   }, [onClose, saving]);
 
@@ -837,7 +985,10 @@ function TeamMemberModal({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 p-4 backdrop-blur-sm"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget && !saving) {
+        if (
+          e.target === e.currentTarget &&
+          !saving
+        ) {
           onClose();
         }
       }}
@@ -847,12 +998,18 @@ function TeamMemberModal({
         <div className="flex items-start justify-between border-b border-border px-6 py-5">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-soft text-brand">
-              {editing ? <EditIcon size={18} /> : <TeamIcon size={18} />}
+              {editing ? (
+                <EditIcon size={18} />
+              ) : (
+                <TeamIcon size={18} />
+              )}
             </span>
 
             <div>
               <h2 className="font-display text-lg font-semibold text-ink">
-                {editing ? 'Edit Team Member' : 'Add Team Member'}
+                {editing
+                  ? 'Edit Team Member'
+                  : 'Add Team Member'}
               </h2>
 
               <p className="mt-0.5 text-xs text-ink-muted">
@@ -915,12 +1072,18 @@ function TeamMemberModal({
             {/* Password */}
             <div>
               <label className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
-                {editing ? 'New Password' : 'Password'}
+                {editing
+                  ? 'New Password'
+                  : 'Password'}
               </label>
 
               <div className="relative mt-2">
                 <input
-                  type={showPassword ? 'text' : 'password'}
+                  type={
+                    showPassword
+                      ? 'text'
+                      : 'password'
+                  }
                   name="password"
                   value={form.password}
                   onChange={onChange}
@@ -935,7 +1098,11 @@ function TeamMemberModal({
 
                 <button
                   type="button"
-                  onClick={() => setShowPassword((value) => !value)}
+                  onClick={() =>
+                    setShowPassword(
+                      (value) => !value
+                    )
+                  }
                   disabled={saving}
                   className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-ink-faint transition hover:bg-white hover:text-brand disabled:opacity-40"
                   aria-label={
@@ -944,7 +1111,11 @@ function TeamMemberModal({
                       : 'Show password'
                   }
                 >
-                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                  {showPassword ? (
+                    <EyeOffIcon />
+                  ) : (
+                    <EyeIcon />
+                  )}
                 </button>
               </div>
 
@@ -961,38 +1132,35 @@ function TeamMemberModal({
                 Role
               </label>
 
-              <div className="mt-2 grid grid-cols-2 gap-3">
-                <RoleOption
-                  value="staff"
-                  selected={form.role === 'staff'}
-                  onClick={() =>
-                    onChange({
-                      target: {
-                        name: 'role',
-                        value: 'staff',
-                      },
-                    })
-                  }
-                  icon={<UserIcon />}
-                  title="Staff"
-                  description="Manage assigned orders"
-                />
-
-                <RoleOption
-                  value="admin"
-                  selected={form.role === 'admin'}
-                  onClick={() =>
-                    onChange({
-                      target: {
-                        name: 'role',
-                        value: 'admin',
-                      },
-                    })
-                  }
-                  icon={<ShieldIcon />}
-                  title="Admin"
-                  description="Full dashboard access"
-                />
+              <div className="mt-2 grid grid-cols-3 gap-3">
+                {ROLES.map((role) => (
+                  <RoleOption
+                    key={role.value}
+                    selected={
+                      form.role === role.value
+                    }
+                    onClick={() =>
+                      onRoleChange(
+                        role.value
+                      )
+                    }
+                    icon={
+                      role.value ===
+                      'admin' ? (
+                        <ShieldIcon />
+                      ) : role.value ===
+                        'technical' ? (
+                        <TechnicalIcon />
+                      ) : (
+                        <UserIcon />
+                      )
+                    }
+                    title={role.label}
+                    description={
+                      role.description
+                    }
+                  />
+                ))}
               </div>
             </div>
 
@@ -1011,11 +1179,18 @@ function TeamMemberModal({
               <button
                 type="button"
                 role="switch"
-                aria-checked={Boolean(Number(form.is_active))}
+                aria-checked={Boolean(
+                  Number(form.is_active)
+                )}
                 onClick={() =>
                   onStatusChange({
                     target: {
-                      checked: !Boolean(Number(form.is_active)),
+                      checked:
+                        !Boolean(
+                          Number(
+                            form.is_active
+                          )
+                        ),
                     },
                   })
                 }
@@ -1061,7 +1236,9 @@ function TeamMemberModal({
               ) : (
                 <>
                   <CheckIcon size={16} />
-                  {editing ? 'Update Member' : 'Create Member'}
+                  {editing
+                    ? 'Update Member'
+                    : 'Create Member'}
                 </>
               )}
             </button>
@@ -1093,7 +1270,7 @@ function RoleOption({
           : 'border-border bg-white hover:border-brand/20 hover:bg-brand-softer/50'
       }`}
     >
-      <div className="flex items-center gap-2.5">
+      <div className="flex flex-col gap-2">
         <span
           className={`flex h-8 w-8 items-center justify-center rounded-lg ${
             selected
@@ -1109,7 +1286,7 @@ function RoleOption({
             {title}
           </span>
 
-          <span className="mt-0.5 block text-[10px] text-ink-muted">
+          <span className="mt-0.5 block text-[10px] leading-4 text-ink-muted">
             {description}
           </span>
         </span>
@@ -1125,17 +1302,25 @@ function RoleOption({
 function getInitials(name) {
   if (!name) return 'TM';
 
-  const parts = name.trim().split(/\s+/);
+  const parts = name
+    .trim()
+    .split(/\s+/);
 
   if (parts.length === 1) {
-    return parts[0].slice(0, 2).toUpperCase();
+    return parts[0]
+      .slice(0, 2)
+      .toUpperCase();
   }
 
-  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  return `${parts[0][0]}${
+    parts[parts.length - 1][0]
+  }`.toUpperCase();
 }
 
 function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+    email
+  );
 }
 
 /* ========================================================================== */
@@ -1194,6 +1379,23 @@ function ShieldIcon({ size = 17 }) {
     >
       <path d="M12 3 20 6v5c0 5-3.2 8.3-8 10-4.8-1.7-8-5-8-10V6l8-3Z" />
       <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+
+function TechnicalIcon({ size = 17 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M14.7 6.3a4.5 4.5 0 0 0-5.8 5.8L4 17v3h3l4.9-4.9a4.5 4.5 0 0 0 5.8-5.8l-2.1 2.1-2.4-.6-.6-2.4 2.1-2.1Z" />
     </svg>
   );
 }
@@ -1271,7 +1473,9 @@ function SearchIcon() {
 function RefreshIcon({ spinning = false }) {
   return (
     <svg
-      className={spinning ? 'animate-spin' : ''}
+      className={
+        spinning ? 'animate-spin' : ''
+      }
       width="16"
       height="16"
       viewBox="0 0 24 24"
