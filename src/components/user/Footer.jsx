@@ -1,8 +1,13 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
 import Logo from '../common/Logo';
 
 export default function Footer() {
   return (
-    <footer id="contact" className="relative overflow-hidden border-t border-border bg-white">
+    <footer
+      id="contact"
+      className="relative overflow-hidden border-t border-border bg-white"
+    >
       {/* Soft decorative background */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -right-32 -top-32 h-72 w-72 rounded-full bg-brand/[0.05] blur-3xl" />
@@ -11,7 +16,7 @@ export default function Footer() {
 
       <div className="relative mx-auto max-w-7xl px-5 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
         {/* Main footer */}
-        <div className="grid gap-12 lg:grid-cols-[1.5fr_1fr_1fr] lg:gap-16">
+        <div className="grid gap-12 lg:grid-cols-[1.5fr_1fr_1fr_1fr] lg:gap-12">
 
           {/* Brand */}
           <div className="max-w-md">
@@ -81,11 +86,12 @@ export default function Footer() {
             </address>
 
             <div className="mt-5">
-              <a
-                href="/contact"
+              <Link
+                to="/contact"
                 className="inline-flex items-center gap-2 text-sm font-semibold text-brand transition-colors hover:text-brand-deep"
               >
                 Contact our team
+
                 <svg
                   width="14"
                   height="14"
@@ -99,7 +105,7 @@ export default function Footer() {
                   <path d="M5 12h14" />
                   <path d="m13 6 6 6-6 6" />
                 </svg>
-              </a>
+              </Link>
             </div>
           </div>
 
@@ -138,20 +144,7 @@ export default function Footer() {
               >
                 <span>Pathans Apple Info Tech</span>
 
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="opacity-40 transition-all group-hover:translate-x-0.5 group-hover:opacity-100"
-                >
-                  <path d="M7 17 17 7" />
-                  <path d="M7 7h10v10" />
-                </svg>
+                <ExternalIcon />
               </a>
 
               <a
@@ -162,20 +155,7 @@ export default function Footer() {
               >
                 <span>Pathans AI Studio</span>
 
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="opacity-40 transition-all group-hover:translate-x-0.5 group-hover:opacity-100"
-                >
-                  <path d="M7 17 17 7" />
-                  <path d="M7 7h10v10" />
-                </svg>
+                <ExternalIcon />
               </a>
 
               <a
@@ -186,21 +166,49 @@ export default function Footer() {
               >
                 <span>Watichat Whatsapp Api</span>
 
+                <ExternalIcon />
+              </a>
+            </div>
+          </div>
+
+          {/* Policies */}
+          <div>
+            <div className="mb-5 flex items-center gap-2.5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft text-brand">
                 <svg
-                  width="14"
-                  height="14"
+                  width="15"
+                  height="15"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="1.8"
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  className="opacity-40 transition-all group-hover:translate-x-0.5 group-hover:opacity-100"
                 >
-                  <path d="M7 17 17 7" />
-                  <path d="M7 7h10v10" />
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+                  <path d="M14 2v6h6" />
+                  <path d="M8 13h8" />
+                  <path d="M8 17h6" />
                 </svg>
-              </a>
+              </span>
+
+              <h3 className="font-display text-sm font-bold text-ink">
+                Policies
+              </h3>
+            </div>
+
+            <div className="space-y-2">
+              <PolicyLink to="/terms-and-conditions">
+                Terms & Conditions
+              </PolicyLink>
+
+              <PolicyLink to="/privacy-policy">
+                Privacy Policy
+              </PolicyLink>
+
+              <PolicyLink to="/cancellation-refund-policy">
+                Cancellation & Refund Policy
+              </PolicyLink>
             </div>
           </div>
         </div>
@@ -228,5 +236,57 @@ export default function Footer() {
         </div>
       </div>
     </footer>
+  );
+}
+
+/* ---------------------------------------------
+   Policy Link
+--------------------------------------------- */
+
+function PolicyLink({ to, children }) {
+  return (
+    <Link
+      to={to}
+      className="group flex items-center justify-between rounded-xl border border-transparent px-3 py-2.5 text-sm text-ink-muted transition-all hover:border-border hover:bg-canvas-soft hover:text-ink"
+    >
+      <span>{children}</span>
+
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="opacity-40 transition-all group-hover:translate-x-0.5 group-hover:opacity-100"
+      >
+        <path d="m9 18 6-6-6-6" />
+      </svg>
+    </Link>
+  );
+}
+
+/* ---------------------------------------------
+   External Website Icon
+--------------------------------------------- */
+
+function ExternalIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="opacity-40 transition-all group-hover:translate-x-0.5 group-hover:opacity-100"
+    >
+      <path d="M7 17 17 7" />
+      <path d="M7 7h10v10" />
+    </svg>
   );
 }

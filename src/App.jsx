@@ -22,6 +22,9 @@ import AdminTeam from './pages/admin/AdminTeam';
 import { Toaster } from 'react-hot-toast';
 import SmoothScroll from './components/common/SmoothScroll';
 import NotFound from './pages/common/NotFound';
+import TermsAndConditions from './pages/common/TermsConditions';
+import PrivacyPolicy from './pages/common/PrivacyPolicy';
+import CancellationRefundPolicy from './pages/common/CancellationRefundPolicy';
 
 export default function App() {
   return (
@@ -40,6 +43,14 @@ export default function App() {
             <Route path="/checkout/:serviceId" element={<Checkout />} />
             <Route path="/order-success/:orderNumber" element={<OrderConfirmation />} />
             <Route path="/contact" element={<Contact />} />
+
+
+            {/* Policies */}
+            <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/cancellation-refund-policy" element={<CancellationRefundPolicy />} />
+
+
           </Route>
 
           {/* Admin */}
