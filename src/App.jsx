@@ -21,6 +21,7 @@ import AdminTeam from './pages/admin/AdminTeam';
 ;
 import { Toaster } from 'react-hot-toast';
 import SmoothScroll from './components/common/SmoothScroll';
+import NotFound from './pages/common/NotFound';
 
 export default function App() {
   return (
@@ -53,7 +54,7 @@ export default function App() {
           </Route>
 
           {/* Fallback */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
 
