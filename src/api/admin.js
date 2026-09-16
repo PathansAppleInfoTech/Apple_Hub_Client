@@ -126,11 +126,10 @@ export const deactivateCategory = (id) => api.delete(`/categories/${id}`).then((
 
 // Orders (admin)
 export const getOrders = (params = {}) => api.get('/admin/orders', { params }).then((r) => r.data.data);
+export async function getAssignableStaff() { const response = await api.get('/admin/orders/assignable-staff'); return response.data?.data || []; }
 export const getOrderDetail = (id) => api.get(`/admin/orders/${id}`).then((r) => r.data.data);
-export const updateOrderStatus = (id, order_status) =>
-  api.put(`/admin/orders/${id}/status`, { order_status }).then((r) => r.data.data);
-export const assignOrder = (id, assigned_to) =>
-  api.put(`/admin/orders/${id}/assign`, { assigned_to }).then((r) => r.data.data);
+export const updateOrderStatus = (id, order_status) => api.put(`/admin/orders/${id}/status`, { order_status }).then((r) => r.data.data);
+export async function assignOrder(orderId, assignment) { const response = await api.put(`/admin/orders/${orderId}/assign`, assignment); return response.data?.data; }
 
 // Team (admin)
 export const getTeam = () => api.get('/admin/team').then((r) => r.data.data);

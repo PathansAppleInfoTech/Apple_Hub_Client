@@ -18,8 +18,8 @@ export default function AdminLayout() {
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const [unattendedOrderCount, setUnattendedOrderCount] =
-    useState(0);
+  // const [unattendedOrderCount, setUnattendedOrderCount] =
+  //   useState(0);
 
   /*
    * Load all orders and calculate
@@ -27,35 +27,35 @@ export default function AdminLayout() {
    *
    * Unattended = confirmed orders
    */
-  useEffect(() => {
-    if (!admin) return;
+  // useEffect(() => {
+  //   if (!admin) return;
 
-    loadUnattendedOrders();
-  }, [admin]);
+  //   loadUnattendedOrders();
+  // }, [admin]);
 
-  async function loadUnattendedOrders() {
-    try {
-      const orders = await getOrders();
+  // async function loadUnattendedOrders() {
+  //   try {
+  //     const orders = await getOrders();
 
-      const confirmedOrders = Array.isArray(orders)
-        ? orders.filter(
-          (order) =>
-            order.order_status === 'confirmed'
-        )
-        : [];
+  //     const confirmedOrders = Array.isArray(orders)
+  //       ? orders.filter(
+  //         (order) =>
+  //           order.order_status === 'confirmed'
+  //       )
+  //       : [];
 
-      setUnattendedOrderCount(
-        confirmedOrders.length
-      );
-    } catch (error) {
-      console.error(
-        '[AdminLayout] Failed to load order count:',
-        error
-      );
+  //     setUnattendedOrderCount(
+  //       confirmedOrders.length
+  //     );
+  //   } catch (error) {
+  //     console.error(
+  //       '[AdminLayout] Failed to load order count:',
+  //       error
+  //     );
 
-      setUnattendedOrderCount(0);
-    }
-  }
+  //     setUnattendedOrderCount(0);
+  //   }
+  // }
 
   if (loading) {
     return <AdminLoadingScreen />;
@@ -84,7 +84,7 @@ export default function AdminLayout() {
         mobileOpen={mobileOpen}
         onClose={() => setMobileOpen(false)}
         onSignOut={handleSignOut}
-        unattendedOrderCount={unattendedOrderCount}
+        // unattendedOrderCount={unattendedOrderCount}
       />
 
       {/* Main area */}

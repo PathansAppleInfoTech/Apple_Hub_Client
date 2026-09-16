@@ -1,12 +1,24 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+
 import toast from 'react-hot-toast';
+
 import {
   getOrders,
+  getAssignableStaff,
+  assignOrder,
   updateOrderStatus,
 } from '../../api/admin';
+
 import { useAdminAuth } from '../../context/AdminAuthContext';
 import { formatPrice } from '../../components/user/ServiceCard';
 import { LoadingState } from '../../components/admin/StateViews';
+
 
 const ORDER_STATUSES = [
   'confirmed',
@@ -15,26 +27,51 @@ const ORDER_STATUSES = [
   'refunded',
 ];
 
+
 export default function AdminOrders() {
   const { admin } = useAdminAuth();
 
   const [orders, setOrders] = useState([]);
 
+  const [staff, setStaff] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [staffLoading, setStaffLoading] = useState(false);
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
   const [detailOrder, setDetailOrder] = useState(null);
 
-  const [updatingOrderId, setUpdatingOrderId] = useState(null);
+  const [updatingOrderId, setUpdatingOrderId] =
+    useState(null);
 
-  const isAdmin = admin?.role === 'admin';
+  const [assigningOrderId, setAssigningOrderId] =
+    useState(null);
 
-  /* ---------------------------------------------------------------------- */
-  /* Load Orders                                                            */
-  /* ---------------------------------------------------------------------- */
+  const [confirmAction, setConfirmAction] =
+    useState(null);
+
+  const [confirmLoading, setConfirmLoading] =
+    useState(false);
+
+  const [isAdmin] = useState(
+    admin?.role === 'admin'
+  );
+
+  const isExecutive =
+    admin?.role === 'executive';
+
+  const isTechnical =
+    admin?.role === 'technical';
+
+
+  /*
+   * --------------------------------------------------------------------------
+   * Load Orders
+   * --------------------------------------------------------------------------
+   */
 
   const loadOrders = useCallback(
     async ({ silent = false } = {}) => {
@@ -55,22 +92,25 @@ export default function AdminOrders() {
           params.status = statusFilter;
         }
 
-        console.log('[Orders] Loading orders:', params);
-
         const data = await getOrders(params);
 
-        setOrders(Array.isArray(data) ? data : []);
-
-        console.log(
-          '[Orders] Orders loaded:',
-          Array.isArray(data) ? data.length : 0
+        setOrders(
+          Array.isArray(data)
+            ? data
+            : []
         );
+
       } catch (error) {
-        console.error('[Orders] Failed to load orders:', error);
+        console.error(
+          '[Orders] Failed to load orders:',
+          error
+        );
 
         toast.error(
-          error.message || 'Unable to load orders. Please try again.'
+          error.message ||
+          'Unable to load orders. Please try again.'
         );
+
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -79,55 +119,423 @@ export default function AdminOrders() {
     [search, statusFilter]
   );
 
+
   useEffect(() => {
     loadOrders();
   }, [loadOrders]);
 
-  /* ---------------------------------------------------------------------- */
-  /* Stats                                                                  */
-  /* ---------------------------------------------------------------------- */
+
+  /*
+   * --------------------------------------------------------------------------
+   * Load Staff
+   * --------------------------------------------------------------------------
+   *
+   * Only Admin needs the complete Executive / Technical list.
+   * --------------------------------------------------------------------------
+   */
+
+  const loadStaff = useCallback(async () => {
+    if (!isAdmin) return;
+
+    setStaffLoading(true);
+
+    try {
+      const data = await getAssignableStaff();
+
+      setStaff(
+        Array.isArray(data)
+          ? data
+          : []
+      );
+
+    } catch (error) {
+      console.error(
+        '[Orders] Failed to load staff:',
+        error
+      );
+
+      toast.error(
+        error.message ||
+        'Unable to load staff list.'
+      );
+
+    } finally {
+      setStaffLoading(false);
+    }
+  }, [isAdmin]);
+
+
+  useEffect(() => {
+    loadStaff();
+  }, [loadStaff]);
+
+
+  /*
+   * --------------------------------------------------------------------------
+   * Stats
+   * --------------------------------------------------------------------------
+   */
 
   const stats = useMemo(() => {
     const total = orders.length;
-    const confirmed = orders.filter((order) => order.order_status === 'confirmed').length;
-    const processing = orders.filter((order) => order.order_status === 'processing').length;
-    const completed = orders.filter((order) => order.order_status === 'completed').length;
-    const refunded = orders.filter((order) => order.order_status === 'refunded').length;
 
-    return { total, confirmed, processing, completed, refunded };
+    const confirmed = orders.filter(
+      (order) =>
+        order.order_status === 'confirmed'
+    ).length;
+
+    const processing = orders.filter(
+      (order) =>
+        order.order_status === 'processing'
+    ).length;
+
+    const completed = orders.filter(
+      (order) =>
+        order.order_status === 'completed'
+    ).length;
+
+    const refunded = orders.filter(
+      (order) =>
+        order.order_status === 'refunded'
+    ).length;
+
+    return {
+      total,
+      confirmed,
+      processing,
+      completed,
+      refunded,
+    };
   }, [orders]);
 
-  /* ---------------------------------------------------------------------- */
-  /* Status Update                                                          */
-  /* ---------------------------------------------------------------------- */
 
-  async function handleStatusChange(order, newStatus) {
-    if (!order || order.order_status === newStatus) return;
+  /*
+   * --------------------------------------------------------------------------
+   * Status Permission
+   * --------------------------------------------------------------------------
+   */
 
+  function canUpdateStatus(order) {
+    if (!order || !admin) {
+      return false;
+    }
+
+    if (admin.role === 'admin') {
+      return true;
+    }
+
+    if (admin.role === 'executive') {
+      return (
+        Number(order.assigned_executive) ===
+        Number(admin.id)
+      );
+    }
+
+    if (admin.role === 'technical') {
+      return (
+        Number(order.assigned_technical) ===
+        Number(admin.id)
+      );
+    }
+
+    return false;
+  }
+
+
+  /*
+   * --------------------------------------------------------------------------
+   * Status Update
+   * --------------------------------------------------------------------------
+   */
+
+  function handleStatusChange(
+    order,
+    newStatus
+  ) {
+    if (
+      !order ||
+      order.order_status === newStatus
+    ) {
+      return;
+    }
+
+    if (!canUpdateStatus(order)) {
+      toast.error(
+        'You can update status only for orders assigned to you.'
+      );
+      return;
+    }
+
+    setConfirmAction({
+      type: 'status',
+      order,
+      newStatus,
+    });
+  }
+
+
+  async function confirmStatusChange() {
+    if (!confirmAction?.order || !confirmAction?.newStatus) {
+      return;
+    }
+
+    const { order, newStatus } = confirmAction;
+
+    setConfirmLoading(true);
     setUpdatingOrderId(order.id);
 
     try {
-      console.log(
-        '[Orders] Updating status:',
+      await updateOrderStatus(
         order.id,
         newStatus
       );
 
-      await updateOrderStatus(order.id, newStatus);
-
       toast.success(
-        `Order ${order.order_number} is now ${formatStatus(newStatus)}.`
+        `Order ${order.order_number} is now ${formatStatus(
+          newStatus
+        )}.`
       );
 
-      await loadOrders({ silent: true });
+      setConfirmAction(null);
+
+      await loadOrders({
+        silent: true,
+      });
+
     } catch (error) {
-      console.error('[Orders] Status update failed:', error);
+      console.error(
+        '[Orders] Status update failed:',
+        error
+      );
 
       toast.error(
-        error.message || 'Unable to update order status.'
+        error.message ||
+        'Unable to update order status.'
       );
     } finally {
+      setConfirmLoading(false);
       setUpdatingOrderId(null);
+    }
+  }
+
+  /*
+   * --------------------------------------------------------------------------
+   * Admin Assignment
+   * --------------------------------------------------------------------------
+   */
+
+  function handleAdminAssignment(
+    order,
+    executiveId,
+    technicalId
+  ) {
+    if (!order || !isAdmin) return;
+
+    const nextExecutive = executiveId || null;
+    const nextTechnical = technicalId || null;
+
+    const unchanged =
+      String(order.assigned_executive || '') ===
+        String(nextExecutive || '') &&
+      String(order.assigned_technical || '') ===
+        String(nextTechnical || '');
+
+    if (unchanged) {
+      toast('No assignment changes to save.');
+      return;
+    }
+
+    setConfirmAction({
+      type: 'assignment',
+      order,
+      executiveId: nextExecutive,
+      technicalId: nextTechnical,
+    });
+  }
+
+
+  async function confirmAdminAssignment() {
+    if (!confirmAction?.order) return;
+
+    const {
+      order,
+      executiveId,
+      technicalId,
+    } = confirmAction;
+
+    setConfirmLoading(true);
+    setAssigningOrderId(order.id);
+
+    try {
+      await assignOrder(
+        order.id,
+        {
+          assigned_executive: executiveId || null,
+          assigned_technical: technicalId || null,
+        }
+      );
+
+      toast.success(
+        'Order assignment updated.'
+      );
+
+      setConfirmAction(null);
+
+      const data = await getOrders({
+        ...(search.trim()
+          ? { search: search.trim() }
+          : {}),
+        ...(statusFilter !== 'all'
+          ? { status: statusFilter }
+          : {}),
+      });
+
+      setOrders(
+        Array.isArray(data)
+          ? data
+          : []
+      );
+
+      const updated = data.find(
+        (item) =>
+          Number(item.id) ===
+          Number(order.id)
+      );
+
+      if (updated) {
+        setDetailOrder(updated);
+      }
+
+    } catch (error) {
+      console.error(
+        '[Orders] Assignment failed:',
+        error
+      );
+
+      toast.error(
+        error.message ||
+        'Unable to update assignment.'
+      );
+    } finally {
+      setConfirmLoading(false);
+      setAssigningOrderId(null);
+    }
+  }
+
+  /*
+   * --------------------------------------------------------------------------
+   * Staff Claim
+   * --------------------------------------------------------------------------
+   */
+
+  function handleTakeOrder(order) {
+    if (!order || !admin) return;
+
+    const role = admin.role;
+
+    if (
+      role !== 'executive' &&
+      role !== 'technical'
+    ) {
+      return;
+    }
+
+    const isAlreadyAssigned =
+      role === 'executive'
+        ? Number(order.assigned_executive) ===
+          Number(admin.id)
+        : Number(order.assigned_technical) ===
+          Number(admin.id);
+
+    if (isAlreadyAssigned) {
+      return;
+    }
+
+    const isAvailable =
+      role === 'executive'
+        ? !order.assigned_executive
+        : !order.assigned_technical;
+
+    if (!isAvailable) {
+      toast.error(
+        `This order has already been taken by another ${
+          role === 'executive'
+            ? 'Executive'
+            : 'Technical staff member'
+        }.`
+      );
+      return;
+    }
+
+    setConfirmAction({
+      type: 'take',
+      order,
+      role,
+    });
+  }
+
+
+  async function confirmTakeOrder() {
+    if (!confirmAction?.order || !admin) return;
+
+    const { order, role } = confirmAction;
+
+    setConfirmLoading(true);
+    setAssigningOrderId(order.id);
+
+    try {
+      const assignment = {
+        assigned_executive:
+          role === 'executive'
+            ? admin.id
+            : undefined,
+        assigned_technical:
+          role === 'technical'
+            ? admin.id
+            : undefined,
+      };
+
+      await assignOrder(
+        order.id,
+        assignment
+      );
+
+      toast.success(
+        'Order assigned to you.'
+      );
+
+      setConfirmAction(null);
+
+      await loadOrders({
+        silent: true,
+      });
+
+      const refreshed =
+        await getOrders({});
+
+      const updated = refreshed.find(
+        (item) =>
+          Number(item.id) ===
+          Number(order.id)
+      );
+
+      if (updated) {
+        setDetailOrder(updated);
+      }
+
+    } catch (error) {
+      console.error(
+        '[Orders] Take order failed:',
+        error
+      );
+
+      toast.error(
+        error.message ||
+        'Unable to take this order.'
+      );
+    } finally {
+      setConfirmLoading(false);
+      setAssigningOrderId(null);
     }
   }
 
@@ -136,15 +544,19 @@ export default function AdminOrders() {
     setStatusFilter('all');
   }
 
+
   return (
     <div className="min-w-0">
+
       {/* ------------------------------------------------------------------ */}
       {/* Header                                                             */}
       {/* ------------------------------------------------------------------ */}
 
       <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+
         <div>
           <div className="flex items-center gap-2">
+
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-soft text-brand">
               <OrdersIcon />
             </span>
@@ -156,71 +568,144 @@ export default function AdminOrders() {
 
               <p className="mt-0.5 text-sm text-ink-muted">
                 {isAdmin
-                  ? 'Manage customer orders and track order status.'
-                  : 'View and manage the orders assigned to you.'}
+                  ? 'Manage customer orders, assignments and status.'
+                  : 'View available orders and orders assigned to you.'}
               </p>
             </div>
+
           </div>
         </div>
 
+
         <button
           type="button"
-          onClick={() => loadOrders({ silent: true })}
+          onClick={() =>
+            loadOrders({
+              silent: true,
+            })
+          }
           disabled={refreshing}
           className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 text-sm font-semibold text-ink-muted shadow-sm transition hover:border-brand/20 hover:bg-brand-softer hover:text-brand disabled:cursor-not-allowed disabled:opacity-60"
         >
           <RefreshIcon spinning={refreshing} />
-          {refreshing ? 'Refreshing...' : 'Refresh'}
+
+          {refreshing
+            ? 'Refreshing...'
+            : 'Refresh'}
         </button>
+
       </div>
+
 
       {/* ------------------------------------------------------------------ */}
       {/* Stats                                                              */}
       {/* ------------------------------------------------------------------ */}
 
       <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <StatCard label="Total Orders" value={stats.total} icon={<OrdersIcon />} iconClass="bg-brand-soft text-brand" />
-        <StatCard label="Confirmed" value={stats.confirmed} icon={<CheckIcon />} iconClass="bg-brand-soft text-brand" />
-        <StatCard label="In Progress" value={stats.processing} icon={<ProgressIcon />} iconClass="bg-teal-soft text-teal-deep" />
-        <StatCard label="Completed" value={stats.completed} icon={<CheckIcon />} iconClass="bg-whatsapp-soft text-whatsapp-deep" />
-        <StatCard label="Refunded" value={stats.refunded} icon={<RefreshIcon />} iconClass="bg-coral-soft text-coral-deep" />
+
+        <StatCard
+          label="Total Orders"
+          value={stats.total}
+          icon={<OrdersIcon />}
+          iconClass="bg-brand-soft text-brand"
+        />
+
+        <StatCard
+          label="Confirmed"
+          value={stats.confirmed}
+          icon={<CheckIcon />}
+          iconClass="bg-brand-soft text-brand"
+        />
+
+        <StatCard
+          label="In Progress"
+          value={stats.processing}
+          icon={<ProgressIcon />}
+          iconClass="bg-teal-soft text-teal-deep"
+        />
+
+        <StatCard
+          label="Completed"
+          value={stats.completed}
+          icon={<CheckIcon />}
+          iconClass="bg-whatsapp-soft text-whatsapp-deep"
+        />
+
+        <StatCard
+          label="Refunded"
+          value={stats.refunded}
+          icon={<RefreshIcon />}
+          iconClass="bg-coral-soft text-coral-deep"
+        />
+
       </div>
+
 
       {/* ------------------------------------------------------------------ */}
       {/* Filters                                                            */}
       {/* ------------------------------------------------------------------ */}
 
       <div className="mt-7 rounded-2xl border border-border bg-surface p-4 shadow-sm shadow-ink/[0.025] sm:p-5">
+
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+
           <div className="relative w-full xl:max-w-lg">
+
             <SearchIcon />
 
             <input
               type="search"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
               placeholder="Search order number, customer or email..."
               className="h-11 w-full rounded-xl border border-border bg-canvas-soft pl-10 pr-4 text-sm text-ink outline-none transition placeholder:text-ink-faint focus:border-brand/40 focus:bg-white focus:ring-4 focus:ring-brand/10"
             />
+
           </div>
 
+
           <div className="flex items-center gap-2 overflow-x-auto">
+
             <FilterIcon />
 
             {[
-              { value: 'all', label: 'All Orders' },
-              { value: 'confirmed', label: 'Confirmed' },
-              { value: 'processing', label: 'In Progress' },
-              { value: 'completed', label: 'Completed' },
-              { value: 'refunded', label: 'Refunded' },
+              {
+                value: 'all',
+                label: 'All Orders',
+              },
+              {
+                value: 'confirmed',
+                label: 'Confirmed',
+              },
+              {
+                value: 'processing',
+                label: 'In Progress',
+              },
+              {
+                value: 'completed',
+                label: 'Completed',
+              },
+              {
+                value: 'refunded',
+                label: 'Refunded',
+              },
             ].map((filter) => {
-              const active = statusFilter === filter.value;
+
+              const active =
+                statusFilter ===
+                filter.value;
 
               return (
                 <button
                   key={filter.value}
                   type="button"
-                  onClick={() => setStatusFilter(filter.value)}
+                  onClick={() =>
+                    setStatusFilter(
+                      filter.value
+                    )
+                  }
                   className={`h-10 shrink-0 rounded-xl px-3.5 text-xs font-semibold transition ${
                     active
                       ? 'bg-brand text-white shadow-sm shadow-brand/20'
@@ -231,15 +716,24 @@ export default function AdminOrders() {
                 </button>
               );
             })}
+
           </div>
+
         </div>
 
-        {(search || statusFilter !== 'all') && (
+
+        {(search ||
+          statusFilter !== 'all') && (
           <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+
             <p className="text-xs text-ink-muted">
               {loading
                 ? 'Searching orders...'
-                : `${orders.length} order${orders.length === 1 ? '' : 's'} found`}
+                : `${orders.length} order${
+                    orders.length === 1
+                      ? ''
+                      : 's'
+                  } found`}
             </p>
 
             <button
@@ -249,131 +743,268 @@ export default function AdminOrders() {
             >
               Clear filters
             </button>
+
           </div>
         )}
+
       </div>
+
 
       {/* ------------------------------------------------------------------ */}
       {/* Orders                                                             */}
       {/* ------------------------------------------------------------------ */}
 
       <div className="mt-5">
+
         {loading ? (
+
           <div className="rounded-2xl border border-border bg-surface">
             <LoadingState label="Loading orders..." />
           </div>
+
         ) : orders.length === 0 ? (
+
           <EmptyOrders
-            hasFilters={Boolean(search) || statusFilter !== 'all'}
+            hasFilters={
+              Boolean(search) ||
+              statusFilter !== 'all'
+            }
             onClear={clearFilters}
           />
+
         ) : (
+
           <>
             {/* Desktop */}
+
             <div className="hidden overflow-hidden rounded-2xl border border-border bg-surface shadow-sm shadow-ink/[0.025] xl:block">
+
               <div className="flex items-center justify-between border-b border-border px-5 py-4">
+
                 <div>
                   <h2 className="font-display text-sm font-semibold text-ink">
                     Customer Orders
                   </h2>
 
                   <p className="mt-0.5 text-xs text-ink-muted">
-                    {orders.length} order{orders.length === 1 ? '' : 's'}
+                    {orders.length} order
+                    {orders.length === 1
+                      ? ''
+                      : 's'}
                   </p>
                 </div>
+
               </div>
 
+
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1100px] text-left">
+
+                <table className="w-full min-w-[1250px] text-left">
+
                   <thead>
                     <tr className="border-b border-border bg-canvas-soft/70">
-                      <th className="px-5 py-3.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+
+                      <TableHead>
                         Order
-                      </th>
+                      </TableHead>
 
-                      <th className="px-5 py-3.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+                      <TableHead>
                         Customer
-                      </th>
+                      </TableHead>
 
-                      <th className="px-5 py-3.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+                      <TableHead>
                         Service
-                      </th>
+                      </TableHead>
 
-                      <th className="px-5 py-3.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+                      <TableHead>
                         Amount
-                      </th>
+                      </TableHead>
 
-                      <th className="px-5 py-3.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+                      <TableHead>
                         Payment
-                      </th>
+                      </TableHead>
 
-                      <th className="px-5 py-3.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+                      <TableHead>
                         Status
-                      </th>
+                      </TableHead>
 
-                      <th className="px-5 py-3.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
-                        Assigned
-                      </th>
+                      <TableHead>
+                        Executive
+                      </TableHead>
+
+                      <TableHead>
+                        Technical
+                      </TableHead>
 
                       <th className="px-5 py-3.5 text-right text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
                         Action
                       </th>
+
                     </tr>
                   </thead>
 
+
                   <tbody className="divide-y divide-border">
+
                     {orders.map((order) => (
+
                       <OrderTableRow
                         key={order.id}
                         order={order}
-                        updating={updatingOrderId === order.id}
-                        onStatusChange={handleStatusChange}
-                        onView={setDetailOrder}
+                        admin={admin}
+                        updating={
+                          updatingOrderId ===
+                          order.id
+                        }
+                        assigning={
+                          assigningOrderId ===
+                          order.id
+                        }
+                        onStatusChange={
+                          handleStatusChange
+                        }
+                        onTakeOrder={
+                          handleTakeOrder
+                        }
+                        onView={
+                          setDetailOrder
+                        }
                       />
+
                     ))}
+
                   </tbody>
+
                 </table>
+
               </div>
+
             </div>
 
-            {/* Tablet / Mobile */}
+
+            {/* Mobile / Tablet */}
+
             <div className="space-y-3 xl:hidden">
+
               {orders.map((order) => (
+
                 <OrderMobileCard
                   key={order.id}
                   order={order}
-                  updating={updatingOrderId === order.id}
-                  onStatusChange={handleStatusChange}
-                  onView={setDetailOrder}
+                  admin={admin}
+                  updating={
+                    updatingOrderId ===
+                    order.id
+                  }
+                  assigning={
+                    assigningOrderId ===
+                    order.id
+                  }
+                  onStatusChange={
+                    handleStatusChange
+                  }
+                  onTakeOrder={
+                    handleTakeOrder
+                  }
+                  onView={
+                    setDetailOrder
+                  }
                 />
+
               ))}
+
             </div>
+
           </>
+
         )}
+
       </div>
+
 
       {/* ------------------------------------------------------------------ */}
       {/* Details Modal                                                      */}
       {/* ------------------------------------------------------------------ */}
 
       {detailOrder && (
+
         <OrderDetailsModal
           order={detailOrder}
-          onClose={() => setDetailOrder(null)}
+          admin={admin}
+          staff={staff}
+          staffLoading={staffLoading}
+          assigning={
+            assigningOrderId ===
+            detailOrder.id
+          }
+          onTakeOrder={
+            handleTakeOrder
+          }
+          onAssign={
+            handleAdminAssignment
+          }
+          onClose={() =>
+            setDetailOrder(null)
+          }
+        />
+
+      )}
+
+
+      {confirmAction && (
+        <ActionConfirmationModal
+          action={confirmAction}
+          loading={confirmLoading}
+          onCancel={() => {
+            if (!confirmLoading) {
+              setConfirmAction(null);
+            }
+          }}
+          onConfirm={() => {
+            if (confirmAction.type === 'status') {
+              confirmStatusChange();
+            } else if (confirmAction.type === 'assignment') {
+              confirmAdminAssignment();
+            } else if (confirmAction.type === 'take') {
+              confirmTakeOrder();
+            }
+          }}
         />
       )}
+
     </div>
   );
 }
 
-/* ========================================================================== */
-/* STAT CARD                                                                  */
-/* ========================================================================== */
 
-function StatCard({ label, value, icon, iconClass }) {
+/* ========================================================================= */
+/* TABLE HEAD                                                               */
+/* ========================================================================= */
+
+function TableHead({ children }) {
+  return (
+    <th className="px-5 py-3.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
+      {children}
+    </th>
+  );
+}
+
+
+/* ========================================================================= */
+/* STAT CARD                                                                */
+/* ========================================================================= */
+
+function StatCard({
+  label,
+  value,
+  icon,
+  iconClass,
+}) {
   return (
     <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm shadow-ink/[0.025] transition hover:-translate-y-0.5 hover:shadow-md">
+
       <div className="flex items-center justify-between">
+
         <span
           className={`flex h-10 w-10 items-center justify-center rounded-xl ${iconClass}`}
         >
@@ -383,7 +1014,9 @@ function StatCard({ label, value, icon, iconClass }) {
         <span className="text-xs font-medium text-ink-faint">
           Overview
         </span>
+
       </div>
+
 
       <p className="mt-5 text-xs font-medium text-ink-muted">
         {label}
@@ -392,39 +1025,78 @@ function StatCard({ label, value, icon, iconClass }) {
       <p className="mt-1 font-display text-2xl font-semibold tracking-tight text-ink">
         {value}
       </p>
+
     </div>
   );
 }
 
-/* ========================================================================== */
-/* DESKTOP ORDER ROW                                                          */
-/* ========================================================================== */
+
+/* ========================================================================= */
+/* DESKTOP ORDER ROW                                                        */
+/* ========================================================================= */
 
 function OrderTableRow({
   order,
+  admin,
   updating,
+  assigning,
   onStatusChange,
+  onTakeOrder,
   onView,
 }) {
+  const canUpdate =
+    admin?.role === 'admin' ||
+    (admin?.role === 'executive' &&
+      Number(order.assigned_executive) ===
+        Number(admin.id)) ||
+    (admin?.role === 'technical' &&
+      Number(order.assigned_technical) ===
+        Number(admin.id));
+
+
+  const canTakeExecutive =
+    admin?.role === 'executive' &&
+    !order.assigned_executive;
+
+  const canTakeTechnical =
+    admin?.role === 'technical' &&
+    !order.assigned_technical;
+
+
   return (
     <tr className="group transition hover:bg-canvas-soft/50">
+
+      {/* Order */}
+
       <td className="px-5 py-4">
+
         <button
           type="button"
-          onClick={() => onView(order)}
+          onClick={() =>
+            onView(order)
+          }
           className="text-left"
         >
+
           <p className="text-sm font-semibold text-ink transition group-hover:text-brand">
             {order.order_number}
           </p>
 
           <p className="mt-0.5 text-xs text-ink-faint">
-            {formatDate(order.created_at)}
+            {formatDate(
+              order.created_at
+            )}
           </p>
+
         </button>
+
       </td>
 
+
+      {/* Customer */}
+
       <td className="px-5 py-4">
+
         <p className="text-sm font-semibold text-ink">
           {order.customer_name}
         </p>
@@ -432,94 +1104,276 @@ function OrderTableRow({
         <p className="mt-0.5 max-w-[190px] truncate text-xs text-ink-muted">
           {order.customer_email}
         </p>
+
       </td>
 
+
+      {/* Service */}
+
       <td className="max-w-[220px] px-5 py-4">
+
         <p className="truncate text-sm text-ink-muted">
           {order.service_title}
         </p>
+
       </td>
 
+
+      {/* Amount */}
+
       <td className="px-5 py-4">
+
         <p className="text-sm font-semibold text-ink">
           {formatPrice(order.amount)}
         </p>
+
       </td>
 
-      <td className="px-5 py-4">
-        <PaymentBadge status={order.payment_status} />
-      </td>
+
+      {/* Payment */}
 
       <td className="px-5 py-4">
-        <StatusSelect
-          value={order.order_status}
-          disabled={updating}
-          onChange={(value) => onStatusChange(order, value)}
+        <PaymentBadge
+          status={order.payment_status}
         />
       </td>
 
+
+      {/* Status */}
+
       <td className="px-5 py-4">
-        <div className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-canvas-soft text-ink-muted">
-            <UserIcon size={15} />
-          </span>
-          <span className="max-w-[150px] truncate text-xs font-medium text-ink-muted">
-            {order.assigned_to_name || 'Unassigned'}
-          </span>
-        </div>
+
+        <StatusSelect
+          value={order.order_status}
+          disabled={
+            updating ||
+            !canUpdate
+          }
+          onChange={(value) =>
+            onStatusChange(
+              order,
+              value
+            )
+          }
+        />
+
       </td>
 
+
+      {/* Executive */}
+
+      <td className="px-5 py-4">
+
+        <AssignmentCell
+          name={
+            order.assigned_executive_name
+          }
+          role="executive"
+          order={order}
+          admin={admin}
+          assigning={assigning}
+          onTakeOrder={
+            onTakeOrder
+          }
+        />
+
+      </td>
+
+
+      {/* Technical */}
+
+      <td className="px-5 py-4">
+
+        <AssignmentCell
+          name={
+            order.assigned_technical_name
+          }
+          role="technical"
+          order={order}
+          admin={admin}
+          assigning={assigning}
+          onTakeOrder={
+            onTakeOrder
+          }
+        />
+
+      </td>
+
+
+      {/* Action */}
+
       <td className="px-5 py-4 text-right">
+
         <button
           type="button"
-          onClick={() => onView(order)}
+          onClick={() =>
+            onView(order)
+          }
           className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-white px-3 text-xs font-semibold text-ink-muted transition hover:border-brand/20 hover:bg-brand-softer hover:text-brand"
         >
           <EyeIcon />
           View
         </button>
+
       </td>
+
     </tr>
   );
 }
 
-/* ========================================================================== */
-/* MOBILE ORDER CARD                                                          */
-/* ========================================================================== */
+
+/* ========================================================================= */
+/* ASSIGNMENT CELL                                                          */
+/* ========================================================================= */
+
+function AssignmentCell({
+  name,
+  role,
+  order,
+  admin,
+  assigning,
+  onTakeOrder,
+}) {
+  const normalizedRole =
+    role === 'executive'
+      ? 'Executive'
+      : 'Technical';
+
+
+  const assignedId =
+    role === 'executive'
+      ? order.assigned_executive
+      : order.assigned_technical;
+
+
+  const isMine =
+    Number(assignedId) ===
+    Number(admin?.id);
+
+
+  const canTake =
+    admin?.role === role &&
+    !assignedId;
+
+
+  return (
+    <div className="min-w-[150px]">
+
+      <div className="flex items-center gap-2">
+
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-canvas-soft text-ink-muted">
+          <UserIcon size={15} />
+        </span>
+
+        <div className="min-w-0">
+
+          <span className="block max-w-[150px] truncate text-xs font-medium text-ink-muted">
+            {isMine
+              ? 'You'
+              : name ||
+                'Unassigned'}
+          </span>
+
+          {isMine && (
+            <span className="text-[10px] text-brand">
+              {normalizedRole}
+            </span>
+          )}
+
+        </div>
+
+      </div>
+
+
+      {canTake && (
+
+        <button
+          type="button"
+          disabled={assigning}
+          onClick={() =>
+            onTakeOrder(order)
+          }
+          className="mt-2 rounded-lg bg-brand-soft px-2.5 py-1.5 text-[10px] font-semibold text-brand transition hover:bg-brand hover:text-white disabled:opacity-50"
+        >
+          {assigning
+            ? 'Taking...'
+            : 'Take Order'}
+        </button>
+
+      )}
+
+    </div>
+  );
+}
+
+
+/* ========================================================================= */
+/* MOBILE ORDER CARD                                                        */
+/* ========================================================================= */
 
 function OrderMobileCard({
   order,
+  admin,
   updating,
+  assigning,
   onStatusChange,
+  onTakeOrder,
   onView,
 }) {
+  const canUpdate =
+    admin?.role === 'admin' ||
+    (admin?.role === 'executive' &&
+      Number(order.assigned_executive) ===
+        Number(admin.id)) ||
+    (admin?.role === 'technical' &&
+      Number(order.assigned_technical) ===
+        Number(admin.id));
+
+
   return (
     <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm shadow-ink/[0.025]">
+
       <div className="flex items-start justify-between gap-3">
+
         <button
           type="button"
-          onClick={() => onView(order)}
+          onClick={() =>
+            onView(order)
+          }
           className="min-w-0 text-left"
         >
+
           <p className="truncate text-sm font-semibold text-ink">
             {order.order_number}
           </p>
 
           <p className="mt-0.5 text-xs text-ink-faint">
-            {formatDate(order.created_at)}
+            {formatDate(
+              order.created_at
+            )}
           </p>
+
         </button>
 
-        <PaymentBadge status={order.payment_status} />
+        <PaymentBadge
+          status={order.payment_status}
+        />
+
       </div>
 
+
+      {/* Customer */}
+
       <div className="mt-4 rounded-xl bg-canvas-soft p-3.5">
+
         <div className="flex items-start gap-3">
+
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
             <UserIcon />
           </span>
 
           <div className="min-w-0">
+
             <p className="text-sm font-semibold text-ink">
               {order.customer_name}
             </p>
@@ -533,11 +1387,18 @@ function OrderMobileCard({
                 {order.customer_phone}
               </p>
             )}
+
           </div>
+
         </div>
+
       </div>
 
+
+      {/* Service */}
+
       <div className="mt-4">
+
         <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
           Service
         </p>
@@ -545,10 +1406,16 @@ function OrderMobileCard({
         <p className="mt-1 text-sm font-medium text-ink">
           {order.service_title}
         </p>
+
       </div>
 
+
+      {/* Amount / Status */}
+
       <div className="mt-4 flex items-center justify-between">
+
         <div>
+
           <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
             Amount
           </p>
@@ -556,65 +1423,186 @@ function OrderMobileCard({
           <p className="mt-1 font-display text-base font-semibold text-ink">
             {formatPrice(order.amount)}
           </p>
+
         </div>
 
+
         <div className="text-right">
+
           <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
             Status
           </p>
 
           <div className="mt-1">
-            <StatusBadge status={order.order_status} />
+            <StatusBadge
+              status={
+                order.order_status
+              }
+            />
           </div>
+
         </div>
+
       </div>
+
+
+      {/* Assignment */}
 
       <div className="mt-4 grid gap-3 border-t border-border pt-4 sm:grid-cols-2">
-        <div>
-          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
-            Order Status
-          </p>
 
-          <StatusSelect
-            value={order.order_status}
-            disabled={updating}
-            onChange={(value) => onStatusChange(order, value)}
-            fullWidth
-          />
-        </div>
+        <AssignmentMobile
+          label="Executive"
+          role="executive"
+          order={order}
+          admin={admin}
+          assigning={assigning}
+          onTakeOrder={
+            onTakeOrder
+          }
+        />
 
-        <div>
-          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
-            Assigned To
-          </p>
+        <AssignmentMobile
+          label="Technical"
+          role="technical"
+          order={order}
+          admin={admin}
+          assigning={assigning}
+          onTakeOrder={
+            onTakeOrder
+          }
+        />
 
-          <div className="flex h-10 items-center gap-2 rounded-xl border border-border bg-canvas-soft px-3 text-xs font-medium text-ink-muted">
-            <UserIcon size={15} />
-            <span className="truncate">
-              {order.assigned_to_name || 'Unassigned'}
-            </span>
-          </div>
-          <p className="mt-1 text-[10px] text-ink-faint">
-            Assignment is automatic and cannot be changed.
-          </p>
-        </div>
       </div>
+
+
+      {/* Status */}
+
+      <div className="mt-4">
+
+        <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+          Update Order Status
+        </p>
+
+        <StatusSelect
+          value={order.order_status}
+          disabled={
+            updating ||
+            !canUpdate
+          }
+          onChange={(value) =>
+            onStatusChange(
+              order,
+              value
+            )
+          }
+          fullWidth
+        />
+
+        {!canUpdate && (
+          <p className="mt-1 text-[10px] text-ink-faint">
+            Status can only be updated by an Admin or an assigned staff member.
+          </p>
+        )}
+
+      </div>
+
 
       <button
         type="button"
-        onClick={() => onView(order)}
+        onClick={() =>
+          onView(order)
+        }
         className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-border bg-white text-xs font-semibold text-ink-muted transition hover:border-brand/20 hover:bg-brand-softer hover:text-brand"
       >
         <EyeIcon />
         View Order Details
       </button>
+
     </div>
   );
 }
 
-/* ========================================================================== */
-/* STATUS SELECT                                                              */
-/* ========================================================================== */
+
+/* ========================================================================= */
+/* MOBILE ASSIGNMENT                                                        */
+/* ========================================================================= */
+
+function AssignmentMobile({
+  label,
+  role,
+  order,
+  admin,
+  assigning,
+  onTakeOrder,
+}) {
+  const isExecutive =
+    role === 'executive';
+
+  const assignedId =
+    isExecutive
+      ? order.assigned_executive
+      : order.assigned_technical;
+
+  const name =
+    isExecutive
+      ? order.assigned_executive_name
+      : order.assigned_technical_name;
+
+  const isMine =
+    Number(assignedId) ===
+    Number(admin?.id);
+
+  const canTake =
+    admin?.role === role &&
+    !assignedId;
+
+
+  return (
+    <div>
+
+      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+        {label}
+      </p>
+
+      <div className="flex min-h-10 items-center gap-2 rounded-xl border border-border bg-canvas-soft px-3 text-xs font-medium text-ink-muted">
+
+        <UserIcon size={15} />
+
+        <span className="truncate">
+          {isMine
+            ? 'You'
+            : name ||
+              'Unassigned'}
+        </span>
+
+      </div>
+
+
+      {canTake && (
+
+        <button
+          type="button"
+          disabled={assigning}
+          onClick={() =>
+            onTakeOrder(order)
+          }
+          className="mt-2 h-9 rounded-lg bg-brand-soft px-3 text-xs font-semibold text-brand hover:bg-brand hover:text-white disabled:opacity-50"
+        >
+          {assigning
+            ? 'Taking...'
+            : 'Take This Order'}
+        </button>
+
+      )}
+
+    </div>
+  );
+}
+
+
+/* ========================================================================= */
+/* STATUS SELECT                                                            */
+/* ========================================================================= */
 
 function StatusSelect({
   value,
@@ -622,120 +1610,405 @@ function StatusSelect({
   onChange,
   fullWidth = false,
 }) {
-  return (
-    <div className={`relative ${fullWidth ? 'w-full' : 'w-[145px]'}`}>
-      <select
-        value={value}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-        className={`h-10 appearance-none rounded-xl border border-border bg-white pl-3 pr-8 text-xs font-semibold text-ink outline-none transition focus:border-brand/40 focus:ring-4 focus:ring-brand/10 disabled:cursor-not-allowed disabled:opacity-60 ${
-          fullWidth ? 'w-full' : 'w-full'
-        }`}
-      >
-        {ORDER_STATUSES.map((status) => (
-          <option key={status} value={status}>
-            {formatStatus(status)}
-          </option>
-        ))}
-      </select>
+  const options = ORDER_STATUSES.map((status) => ({
+    value: status,
+    label: formatStatus(status),
+  }));
 
-      <ChevronIcon />
+  return (
+    <CustomDropdown
+      value={value}
+      options={options}
+      onChange={onChange}
+      disabled={disabled}
+      fullWidth={fullWidth}
+      compact
+    />
+  );
+}
+
+
+/* ========================================================================= */
+/* CUSTOM DROPDOWN                                                          */
+/* ========================================================================= */
+
+function CustomDropdown({
+  value,
+  options,
+  onChange,
+  disabled = false,
+  fullWidth = false,
+  compact = false,
+  placeholder = 'Select',
+}) {
+  const [open, setOpen] = useState(false);
+  const [menuPosition, setMenuPosition] =
+    useState(null);
+  const rootRef = useRef(null);
+  const buttonRef = useRef(null);
+
+  const selected =
+    options.find(
+      (option) =>
+        String(option.value) ===
+        String(value ?? '')
+    ) || null;
+
+  const updateMenuPosition = useCallback(() => {
+    if (!buttonRef.current) return;
+
+    const rect =
+      buttonRef.current.getBoundingClientRect();
+
+    const menuWidth = Math.max(
+      rect.width,
+      compact ? 145 : 240
+    );
+    const estimatedHeight =
+      Math.min(280, Math.max(44, options.length * 52));
+    const gap = 8;
+
+    let left = rect.left;
+    let top = rect.bottom + gap;
+
+    if (left + menuWidth > window.innerWidth - 12) {
+      left =
+        window.innerWidth - menuWidth - 12;
+    }
+
+    if (top + estimatedHeight > window.innerHeight - 12) {
+      top =
+        Math.max(12, rect.top - estimatedHeight - gap);
+    }
+
+    setMenuPosition({
+      top,
+      left,
+      width: menuWidth,
+    });
+  }, [compact, options.length]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    updateMenuPosition();
+
+    function handleOutside(event) {
+      if (
+        rootRef.current &&
+        !rootRef.current.contains(event.target)
+      ) {
+        setOpen(false);
+      }
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        setOpen(false);
+      }
+    }
+
+    function handleViewportChange() {
+      updateMenuPosition();
+    }
+
+    document.addEventListener(
+      'mousedown',
+      handleOutside
+    );
+    document.addEventListener(
+      'keydown',
+      handleKeyDown
+    );
+    window.addEventListener(
+      'resize',
+      handleViewportChange
+    );
+    window.addEventListener(
+      'scroll',
+      handleViewportChange,
+      true
+    );
+
+    return () => {
+      document.removeEventListener(
+        'mousedown',
+        handleOutside
+      );
+      document.removeEventListener(
+        'keydown',
+        handleKeyDown
+      );
+      window.removeEventListener(
+        'resize',
+        handleViewportChange
+      );
+      window.removeEventListener(
+        'scroll',
+        handleViewportChange,
+        true
+      );
+    };
+  }, [open, updateMenuPosition]);
+
+  function choose(option) {
+    if (disabled) return;
+    setOpen(false);
+    onChange(option.value);
+  }
+
+  return (
+    <div
+      ref={rootRef}
+      className={`relative ${
+        fullWidth
+          ? 'w-full'
+          : compact
+            ? 'w-[145px]'
+            : 'w-full'
+      }`}
+    >
+      <button
+        ref={buttonRef}
+        type="button"
+        disabled={disabled}
+        onClick={() => {
+          if (disabled) return;
+          setOpen((current) => !current);
+        }}
+        className={`flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-border bg-white px-3 text-left text-xs font-semibold text-ink outline-none transition ${
+          open
+            ? 'border-brand/40 ring-4 ring-brand/10'
+            : 'hover:border-brand/30'
+        } ${
+          disabled
+            ? 'cursor-not-allowed opacity-60'
+            : 'cursor-pointer'
+        } ${
+          compact ? 'text-xs' : 'text-sm'
+        }`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className="min-w-0 truncate">
+          {selected?.label || placeholder}
+        </span>
+
+        <ChevronIcon
+          className={`shrink-0 transition-transform ${
+            open ? 'rotate-180' : ''
+          }`}
+        />
+      </button>
+
+      {open && menuPosition && (
+        <div
+          role="listbox"
+          className="fixed z-[100] max-h-[280px] overflow-y-auto rounded-xl border border-border bg-white p-1.5 shadow-2xl shadow-ink/15"
+          style={{
+            top: menuPosition.top,
+            left: menuPosition.left,
+            width: menuPosition.width,
+          }}
+        >
+          {options.map((option) => {
+            const active =
+              String(option.value) ===
+              String(value ?? '');
+
+            return (
+              <button
+                key={String(option.value)}
+                type="button"
+                role="option"
+                aria-selected={active}
+                onClick={() =>
+                  choose(option)
+                }
+                className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left transition ${
+                  active
+                    ? 'bg-brand-soft text-brand'
+                    : 'text-ink-muted hover:bg-canvas-soft hover:text-ink'
+                }`}
+              >
+                <span className="min-w-0 truncate">
+                  {option.label}
+                </span>
+
+                {active && (
+                  <CheckIcon
+                    size={15}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
 
-/* ========================================================================== */
-/* PAYMENT BADGE                                                              */
-/* ========================================================================== */
+
+/* ========================================================================= */
+/* STAFF DROPDOWN                                                           */
+/* ========================================================================= */
+
+function StaffDropdown({
+  value,
+  people,
+  onChange,
+  disabled = false,
+  placeholder = 'Unassigned',
+}) {
+  const options = [
+    {
+      value: '',
+      label: placeholder,
+    },
+    ...people.map((person) => ({
+      value: String(person.id),
+      label: person.email
+        ? `${person.name} — ${person.email}`
+        : person.name,
+    })),
+  ];
+
+  return (
+    <CustomDropdown
+      value={value}
+      options={options}
+      onChange={onChange}
+      disabled={disabled}
+      fullWidth
+      placeholder={placeholder}
+    />
+  );
+}
+
+
+/* ========================================================================= */
+/* PAYMENT BADGE                                                            */
+/* ========================================================================= */
 
 function PaymentBadge({ status }) {
   const config = {
     paid: {
       label: 'Paid',
-      className: 'bg-whatsapp-soft text-whatsapp-deep',
+      className:
+        'bg-whatsapp-soft text-whatsapp-deep',
       dot: 'bg-whatsapp',
     },
+
     refunded: {
       label: 'Refunded',
-      className: 'bg-coral-soft text-coral-deep',
+      className:
+        'bg-coral-soft text-coral-deep',
       dot: 'bg-coral',
     },
   };
 
-  const current = config[status] || {
-    label: formatStatus(status),
-    className: 'bg-canvas-soft text-ink-muted',
-    dot: 'bg-ink-faint',
-  };
+  const current =
+    config[status] || {
+      label: formatStatus(status),
+      className:
+        'bg-canvas-soft text-ink-muted',
+      dot: 'bg-ink-faint',
+    };
+
 
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${current.className}`}
     >
-      <span className={`h-1.5 w-1.5 rounded-full ${current.dot}`} />
+      <span
+        className={`h-1.5 w-1.5 rounded-full ${current.dot}`}
+      />
+
       {current.label}
     </span>
   );
 }
 
-/* ========================================================================== */
-/* STATUS BADGE                                                               */
-/* ========================================================================== */
+
+/* ========================================================================= */
+/* STATUS BADGE                                                             */
+/* ========================================================================= */
 
 function StatusBadge({ status }) {
   const config = {
     confirmed: {
-      className: 'bg-brand-soft text-brand',
+      className:
+        'bg-brand-soft text-brand',
       dot: 'bg-brand',
     },
+
     processing: {
-      className: 'bg-teal-soft text-teal-deep',
+      className:
+        'bg-teal-soft text-teal-deep',
       dot: 'bg-teal',
     },
+
     completed: {
-      className: 'bg-whatsapp-soft text-whatsapp-deep',
+      className:
+        'bg-whatsapp-soft text-whatsapp-deep',
       dot: 'bg-whatsapp',
     },
+
     refunded: {
-      className: 'bg-coral-soft text-coral-deep',
+      className:
+        'bg-coral-soft text-coral-deep',
       dot: 'bg-coral',
     },
   };
 
-  const current = config[status] || {
-    className: 'bg-canvas-soft text-ink-muted',
-    dot: 'bg-ink-faint',
-  };
+  const current =
+    config[status] || {
+      className:
+        'bg-canvas-soft text-ink-muted',
+      dot: 'bg-ink-faint',
+    };
+
 
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${current.className}`}
     >
-      <span className={`h-1.5 w-1.5 rounded-full ${current.dot}`} />
+      <span
+        className={`h-1.5 w-1.5 rounded-full ${current.dot}`}
+      />
+
       {formatStatus(status)}
     </span>
   );
 }
 
-/* ========================================================================== */
-/* EMPTY STATE                                                                */
-/* ========================================================================== */
 
-function EmptyOrders({ hasFilters, onClear }) {
+/* ========================================================================= */
+/* EMPTY STATE                                                              */
+/* ========================================================================= */
+
+function EmptyOrders({
+  hasFilters,
+  onClear,
+}) {
   return (
     <div className="rounded-2xl border border-border bg-surface px-6 py-14 text-center shadow-sm shadow-ink/[0.025]">
+
       <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-soft text-brand">
         <OrdersIcon size={24} />
       </span>
 
       <h3 className="mt-5 font-display text-base font-semibold text-ink">
-        {hasFilters ? 'No orders found' : 'No orders yet'}
+        {hasFilters
+          ? 'No orders found'
+          : 'No orders available'}
       </h3>
 
       <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-ink-muted">
         {hasFilters
           ? 'Try changing your search or status filter.'
-          : 'Customer orders will appear here once purchases are placed.'}
+          : 'New customer orders will appear here.'}
       </p>
 
       {hasFilters && (
@@ -747,15 +2020,68 @@ function EmptyOrders({ hasFilters, onClear }) {
           Clear Filters
         </button>
       )}
+
     </div>
   );
 }
 
-/* ========================================================================== */
-/* ORDER DETAILS MODAL                                                        */
-/* ========================================================================== */
 
-function OrderDetailsModal({ order, onClose }) {
+/* ========================================================================= */
+/* ORDER DETAILS MODAL                                                      */
+/* ========================================================================= */
+
+function OrderDetailsModal({
+  order,
+  admin,
+  staff,
+  staffLoading,
+  assigning,
+  onTakeOrder,
+  onAssign,
+  onClose,
+}) {
+  const [executiveId, setExecutiveId] =
+    useState(
+      order.assigned_executive
+        ? String(
+            order.assigned_executive
+          )
+        : ''
+    );
+
+  const [technicalId, setTechnicalId] =
+    useState(
+      order.assigned_technical
+        ? String(
+            order.assigned_technical
+          )
+        : ''
+    );
+
+
+  useEffect(() => {
+    setExecutiveId(
+      order.assigned_executive
+        ? String(
+            order.assigned_executive
+          )
+        : ''
+    );
+
+    setTechnicalId(
+      order.assigned_technical
+        ? String(
+            order.assigned_technical
+          )
+        : ''
+    );
+  }, [
+    order.id,
+    order.assigned_executive,
+    order.assigned_technical,
+  ]);
+
+
   useEffect(() => {
     function handleKeyDown(e) {
       if (e.key === 'Escape') {
@@ -763,31 +2089,76 @@ function OrderDetailsModal({ order, onClose }) {
       }
     }
 
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener(
+      'keydown',
+      handleKeyDown
+    );
 
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener(
+        'keydown',
+        handleKeyDown
+      );
     };
   }, [onClose]);
+
+
+  const executives =
+    staff.filter(
+      (person) =>
+        person.role === 'executive'
+    );
+
+  const technicals =
+    staff.filter(
+      (person) =>
+        person.role === 'technical'
+    );
+
+
+  const isExecutive =
+    admin?.role === 'executive';
+
+  const isTechnical =
+    admin?.role === 'technical';
+
+
+  const canTakeExecutive =
+    isExecutive &&
+    !order.assigned_executive;
+
+  const canTakeTechnical =
+    isTechnical &&
+    !order.assigned_technical;
+
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 p-4 backdrop-blur-sm"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) {
+        if (
+          e.target ===
+          e.currentTarget
+        ) {
           onClose();
         }
       }}
     >
+
       <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border bg-white shadow-2xl shadow-ink/20">
+
         {/* Header */}
+
         <div className="flex shrink-0 items-start justify-between border-b border-border px-6 py-5">
+
           <div className="flex items-center gap-3">
+
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-soft text-brand">
               <OrdersIcon />
             </span>
 
             <div>
+
               <p className="text-xs font-medium text-ink-muted">
                 Order Details
               </p>
@@ -795,8 +2166,11 @@ function OrderDetailsModal({ order, onClose }) {
               <h2 className="mt-0.5 font-display text-lg font-semibold text-ink">
                 {order.order_number}
               </h2>
+
             </div>
+
           </div>
+
 
           <button
             type="button"
@@ -806,79 +2180,236 @@ function OrderDetailsModal({ order, onClose }) {
           >
             <CloseIcon />
           </button>
+
         </div>
 
+
         {/* Body */}
+
         <div className="overflow-y-auto px-6 py-6">
-          {/* Status */}
+
           <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge status={order.order_status} />
-            <PaymentBadge status={order.payment_status} />
+
+            <StatusBadge
+              status={
+                order.order_status
+              }
+            />
+
+            <PaymentBadge
+              status={
+                order.payment_status
+              }
+            />
+
           </div>
 
+
           {/* Customer */}
+
           <DetailSection
             title="Customer Information"
             icon={<UserIcon />}
           >
+
             <DetailRow
               label="Name"
-              value={order.customer_name}
+              value={
+                order.customer_name
+              }
             />
 
             <DetailRow
               label="Email"
-              value={order.customer_email}
+              value={
+                order.customer_email
+              }
             />
 
             <DetailRow
               label="Phone"
-              value={order.customer_phone}
+              value={
+                order.customer_phone
+              }
             />
 
             <DetailRow
               label="Address"
-              value={order.customer_address || 'Not provided'}
+              value={
+                order.customer_address ||
+                'Not provided'
+              }
               multiline
             />
+
           </DetailSection>
 
+
           {/* Order */}
+
           <DetailSection
             title="Order Information"
             icon={<OrdersIcon />}
           >
+
             <DetailRow
               label="Service"
-              value={order.service_title}
+              value={
+                order.service_title
+              }
               multiline
             />
 
             <DetailRow
               label="Amount"
-              value={formatPrice(order.amount)}
+              value={formatPrice(
+                order.amount
+              )}
               strong
             />
 
             <DetailRow
-              label="Assigned to"
-              value={order.assigned_to_name || 'Unassigned'}
+              label="Placed on"
+              value={formatDateTime(
+                order.created_at
+              )}
             />
 
-            <DetailRow
-              label="Placed on"
-              value={formatDateTime(order.created_at)}
-            />
           </DetailSection>
 
-          {/* Payment Details */}
+
+          {/* Assignment */}
+
+          <DetailSection
+            title="Order Assignment"
+            icon={<UserIcon />}
+          >
+
+            {admin?.role === 'admin' ? (
+
+              <div className="space-y-4 py-4">
+
+                {/* Executive */}
+
+                <div>
+
+                  <label className="mb-1.5 block text-xs font-semibold text-ink">
+                    Executive
+                  </label>
+
+                  <StaffDropdown
+                    value={executiveId}
+                    people={executives}
+                    onChange={setExecutiveId}
+                    disabled={
+                      assigning ||
+                      staffLoading
+                    }
+                  />
+
+                </div>
+
+
+                {/* Technical */}
+
+                <div>
+
+                  <label className="mb-1.5 block text-xs font-semibold text-ink">
+                    Technical
+                  </label>
+
+                  <StaffDropdown
+                    value={technicalId}
+                    people={technicals}
+                    onChange={setTechnicalId}
+                    disabled={
+                      assigning ||
+                      staffLoading
+                    }
+                  />
+
+                </div>
+
+
+                <button
+                  type="button"
+                  disabled={
+                    assigning ||
+                    staffLoading
+                  }
+                  onClick={() =>
+                    onAssign(
+                      order,
+                      executiveId,
+                      technicalId
+                    )
+                  }
+                  className="h-10 rounded-xl bg-brand px-4 text-sm font-semibold text-white transition hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {assigning
+                    ? 'Saving...'
+                    : 'Save Assignment'}
+                </button>
+
+              </div>
+
+            ) : (
+
+              <div className="space-y-3 py-4">
+
+                <AssignmentDetail
+                  label="Executive"
+                  name={
+                    order.assigned_executive_name
+                  }
+                  assignedId={
+                    order.assigned_executive
+                  }
+                  admin={admin}
+                  role="executive"
+                  order={order}
+                  assigning={assigning}
+                  onTakeOrder={
+                    onTakeOrder
+                  }
+                />
+
+                <AssignmentDetail
+                  label="Technical"
+                  name={
+                    order.assigned_technical_name
+                  }
+                  assignedId={
+                    order.assigned_technical
+                  }
+                  admin={admin}
+                  role="technical"
+                  order={order}
+                  assigning={assigning}
+                  onTakeOrder={
+                    onTakeOrder
+                  }
+                />
+
+              </div>
+
+            )}
+
+          </DetailSection>
+
+
+          {/* Payment */}
+
           <DetailSection
             title="Payment Details"
             icon={<PaymentIcon />}
           >
+
             <DetailRow
               label="Payment Status"
-              value={formatStatus(order.payment_status)}
+              value={formatStatus(
+                order.payment_status
+              )}
               strong
             />
 
@@ -886,33 +2417,48 @@ function OrderDetailsModal({ order, onClose }) {
               label="Payment Method"
               value={
                 order.payment_method
-                  ? formatStatus(order.payment_method)
+                  ? formatStatus(
+                      order.payment_method
+                    )
                   : 'Razorpay'
               }
             />
 
             <DetailRow
               label="Payment ID"
-              value={order.razorpay_payment_id || 'Not available'}
+              value={
+                order.razorpay_payment_id ||
+                'Not available'
+              }
               multiline
             />
 
             <DetailRow
               label="Razorpay Order ID"
-              value={order.razorpay_order_id || 'Not available'}
+              value={
+                order.razorpay_order_id ||
+                'Not available'
+              }
               multiline
             />
 
             <DetailRow
               label="Amount Paid"
-              value={formatPrice(order.amount)}
+              value={formatPrice(
+                order.amount
+              )}
               strong
             />
+
           </DetailSection>
+
         </div>
 
+
         {/* Footer */}
+
         <div className="flex shrink-0 justify-end border-t border-border bg-canvas-soft/50 px-6 py-4">
+
           <button
             type="button"
             onClick={onClose}
@@ -920,13 +2466,359 @@ function OrderDetailsModal({ order, onClose }) {
           >
             Close
           </button>
+
+        </div>
+
+      </div>
+
+    </div>
+  );
+}
+
+
+/* ========================================================================= */
+/* ASSIGNMENT DETAIL                                                        */
+/* ========================================================================= */
+
+function AssignmentDetail({
+  label,
+  name,
+  assignedId,
+  admin,
+  role,
+  order,
+  assigning,
+  onTakeOrder,
+}) {
+  const isMine =
+    Number(assignedId) ===
+    Number(admin?.id);
+
+  const canTake =
+    admin?.role === role &&
+    !assignedId;
+
+
+  return (
+    <div className="rounded-xl border border-border bg-canvas-soft/60 p-3.5">
+
+      <div className="flex items-center justify-between gap-3">
+
+        <div>
+
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+            {label}
+          </p>
+
+          <p className="mt-1 text-sm font-semibold text-ink">
+            {isMine
+              ? 'You'
+              : name ||
+                'Unassigned'}
+          </p>
+
+        </div>
+
+
+        {isMine && (
+          <span className="rounded-full bg-brand-soft px-2.5 py-1 text-[10px] font-semibold text-brand">
+            Assigned to you
+          </span>
+        )}
+
+      </div>
+
+
+      {canTake && (
+
+        <button
+          type="button"
+          disabled={assigning}
+          onClick={() =>
+            onTakeOrder(order)
+          }
+          className="mt-3 h-9 rounded-lg bg-brand px-3.5 text-xs font-semibold text-white transition hover:bg-brand/90 disabled:opacity-60"
+        >
+          {assigning
+            ? 'Taking...'
+            : 'Take This Order'}
+        </button>
+
+      )}
+
+    </div>
+  );
+}
+
+
+/* ========================================================================= */
+/* DETAIL SECTION                                                           */
+/* ========================================================================= */
+
+function DetailSection({
+  title,
+  icon,
+  children,
+}) {
+  return (
+    <section className="mt-6 first:mt-5">
+
+      <div className="mb-3 flex items-center gap-2">
+
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft text-brand">
+          {icon}
+        </span>
+
+        <h3 className="text-sm font-semibold text-ink">
+          {title}
+        </h3>
+
+      </div>
+
+      <div className="rounded-2xl border border-border bg-canvas-soft/60 px-4">
+        {children}
+      </div>
+
+    </section>
+  );
+}
+
+
+/* ========================================================================= */
+/* DETAIL ROW                                                               */
+/* ========================================================================= */
+
+function DetailRow({
+  label,
+  value,
+  multiline = false,
+  strong = false,
+}) {
+  return (
+    <div
+      className={`flex gap-4 border-b border-border py-3.5 last:border-b-0 ${
+        multiline
+          ? 'items-start'
+          : 'items-center'
+      }`}
+    >
+
+      <span className="w-28 shrink-0 text-xs font-medium text-ink-muted">
+        {label}
+      </span>
+
+      <span
+        className={`min-w-0 flex-1 text-right text-sm ${
+          strong
+            ? 'font-display font-semibold text-ink'
+            : 'text-ink'
+        } ${
+          multiline
+            ? 'break-words leading-6'
+            : ''
+        }`}
+      >
+        {value}
+      </span>
+
+    </div>
+  );
+}
+
+
+/* ========================================================================= */
+/* HELPERS                                                                  */
+/* ========================================================================= */
+
+function formatStatus(status) {
+  if (!status) return 'Unknown';
+
+  const normalized =
+    String(status).toLowerCase();
+
+  const labels = {
+    confirmed: 'Confirmed',
+    processing: 'In Progress',
+    completed: 'Completed',
+    refunded: 'Refunded',
+    paid: 'Paid',
+  };
+
+  return (
+    labels[normalized] ||
+    normalized
+      .replace(/_/g, ' ')
+      .replace(
+        /\b\w/g,
+        (letter) =>
+          letter.toUpperCase()
+      )
+  );
+}
+
+
+function formatDate(value) {
+  if (!value) return '—';
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return '—';
+  }
+
+  return date.toLocaleDateString(
+    'en-IN',
+    {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }
+  );
+}
+
+
+function formatDateTime(value) {
+  if (!value) return '—';
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return '—';
+  }
+
+  return date.toLocaleString(
+    'en-IN',
+    {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }
+  );
+}
+
+
+/* ========================================================================= */
+/* ACTION CONFIRMATION MODAL                                                */
+/* ========================================================================= */
+
+function ActionConfirmationModal({
+  action,
+  loading,
+  onCancel,
+  onConfirm,
+}) {
+  if (!action) return null;
+
+  const isStatus =
+    action.type === 'status';
+  const isAssignment =
+    action.type === 'assignment';
+  const isTake =
+    action.type === 'take';
+
+  let title = 'Confirm Action';
+  let description =
+    'Please confirm this action before continuing.';
+  let confirmLabel = 'Confirm';
+
+  if (isStatus) {
+    title = 'Confirm Status Change';
+    description = `Change ${action.order?.order_number || 'this order'} status from ${formatStatus(
+      action.order?.order_status
+    )} to ${formatStatus(
+      action.newStatus
+    )}?`;
+    confirmLabel = 'Change Status';
+  } else if (isAssignment) {
+    title = 'Confirm Staff Assignment';
+    description = `Save the Executive and Technical assignments for ${
+      action.order?.order_number || 'this order'
+    }?`;
+    confirmLabel = 'Save Assignment';
+  } else if (isTake) {
+    const roleLabel =
+      action.role === 'executive'
+        ? 'Executive'
+        : 'Technical';
+    title = 'Take This Order?';
+    description = `Assign ${
+      action.order?.order_number || 'this order'
+    } to yourself as ${roleLabel}?`;
+    confirmLabel = 'Take Order';
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-ink/35 p-4 backdrop-blur-sm"
+      onMouseDown={(event) => {
+        if (
+          event.target === event.currentTarget &&
+          !loading
+        ) {
+          onCancel();
+        }
+      }}
+    >
+      <div className="w-full max-w-md overflow-hidden rounded-3xl border border-border bg-white shadow-2xl shadow-ink/20">
+        <div className="p-6">
+          <div className="flex items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand">
+              <ShieldCheckIcon />
+            </span>
+
+            <div className="min-w-0">
+              <h3 className="font-display text-lg font-semibold text-ink">
+                {title}
+              </h3>
+
+              <p className="mt-2 text-sm leading-6 text-ink-muted">
+                {description}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-xl border border-border bg-canvas-soft px-3.5 py-3 text-xs leading-5 text-ink-muted">
+            Please verify the details before confirming. This extra step helps prevent accidental clicks.
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t border-border bg-canvas-soft/50 px-6 py-4">
+          <button
+            type="button"
+            disabled={loading}
+            onClick={onCancel}
+            className="h-10 rounded-xl border border-border bg-white px-4 text-sm font-semibold text-ink-muted transition hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            disabled={loading}
+            onClick={onConfirm}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-brand px-4 text-sm font-semibold text-white transition hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading && (
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+            )}
+            {loading
+              ? 'Processing...'
+              : confirmLabel}
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-function PaymentIcon({ size = 17 }) {
+
+/* ========================================================================= */
+/* ICONS                                                                    */
+/* ========================================================================= */
+
+function ShieldCheckIcon({ size = 18 }) {
   return (
     <svg
       width={size}
@@ -938,126 +2830,12 @@ function PaymentIcon({ size = 17 }) {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <rect x="3" y="5" width="18" height="14" rx="2" />
-      <path d="M3 10h18" />
-      <path d="M7 15h3" />
+      <path d="M12 3 19 6v5c0 4.6-2.8 8.1-7 10-4.2-1.9-7-5.4-7-10V6l7-3Z" />
+      <path d="m9 12 2 2 4-4" />
     </svg>
   );
 }
 
-
-/* ========================================================================== */
-/* DETAIL SECTION                                                             */
-/* ========================================================================== */
-
-function DetailSection({ title, icon, children }) {
-  return (
-    <section className="mt-6 first:mt-5">
-      <div className="mb-3 flex items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft text-brand">
-          {icon}
-        </span>
-
-        <h3 className="text-sm font-semibold text-ink">
-          {title}
-        </h3>
-      </div>
-
-      <div className="rounded-2xl border border-border bg-canvas-soft/60 px-4">
-        {children}
-      </div>
-    </section>
-  );
-}
-
-/* ========================================================================== */
-/* DETAIL ROW                                                                 */
-/* ========================================================================== */
-
-function DetailRow({
-  label,
-  value,
-  multiline = false,
-  strong = false,
-}) {
-  return (
-    <div
-      className={`flex gap-4 border-b border-border py-3.5 last:border-b-0 ${
-        multiline ? 'items-start' : 'items-center'
-      }`}
-    >
-      <span className="w-28 shrink-0 text-xs font-medium text-ink-muted">
-        {label}
-      </span>
-
-      <span
-        className={`min-w-0 flex-1 text-right text-sm ${
-          strong
-            ? 'font-display font-semibold text-ink'
-            : 'text-ink'
-        } ${multiline ? 'break-words leading-6' : ''}`}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}
-
-/* ========================================================================== */
-/* HELPERS                                                                    */
-/* ========================================================================== */
-
-function formatStatus(status) {
-  if (!status) return 'Unknown';
-
-  const normalized = String(status).toLowerCase();
-
-  const labels = {
-    confirmed: 'Confirmed',
-    processing: 'In Progress',
-    completed: 'Completed',
-    refunded: 'Refunded',
-    paid: 'Paid',
-  };
-
-  return labels[normalized] || normalized
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function formatDate(value) {
-  if (!value) return '—';
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return '—';
-
-  return date.toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
-function formatDateTime(value) {
-  if (!value) return '—';
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return '—';
-
-  return date.toLocaleString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-/* ========================================================================== */
-/* ICONS                                                                      */
-/* ========================================================================== */
 
 function OrdersIcon({ size = 18 }) {
   return (
@@ -1077,6 +2855,7 @@ function OrdersIcon({ size = 18 }) {
   );
 }
 
+
 function UserIcon({ size = 17 }) {
   return (
     <svg
@@ -1089,11 +2868,17 @@ function UserIcon({ size = 17 }) {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <circle cx="12" cy="8" r="3.5" />
+      <circle
+        cx="12"
+        cy="8"
+        r="3.5"
+      />
+
       <path d="M5 20c.8-3.3 3.1-5 7-5s6.2 1.7 7 5" />
     </svg>
   );
 }
+
 
 function ProgressIcon({ size = 18 }) {
   return (
@@ -1112,6 +2897,7 @@ function ProgressIcon({ size = 18 }) {
   );
 }
 
+
 function CheckIcon({ size = 18 }) {
   return (
     <svg
@@ -1129,6 +2915,7 @@ function CheckIcon({ size = 18 }) {
   );
 }
 
+
 function SearchIcon() {
   return (
     <svg
@@ -1142,11 +2929,17 @@ function SearchIcon() {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <circle cx="11" cy="11" r="7" />
+      <circle
+        cx="11"
+        cy="11"
+        r="7"
+      />
+
       <path d="m20 20-4-4" />
     </svg>
   );
 }
+
 
 function FilterIcon({ size = 16 }) {
   return (
@@ -1166,10 +2959,17 @@ function FilterIcon({ size = 16 }) {
   );
 }
 
-function RefreshIcon({ spinning = false }) {
+
+function RefreshIcon({
+  spinning = false,
+}) {
   return (
     <svg
-      className={spinning ? 'animate-spin' : ''}
+      className={
+        spinning
+          ? 'animate-spin'
+          : ''
+      }
       width="16"
       height="16"
       viewBox="0 0 24 24"
@@ -1187,6 +2987,7 @@ function RefreshIcon({ spinning = false }) {
   );
 }
 
+
 function EyeIcon({ size = 15 }) {
   return (
     <svg
@@ -1200,15 +3001,21 @@ function EyeIcon({ size = 15 }) {
       strokeLinejoin="round"
     >
       <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
-      <circle cx="12" cy="12" r="2.5" />
+
+      <circle
+        cx="12"
+        cy="12"
+        r="2.5"
+      />
     </svg>
   );
 }
 
-function ChevronIcon() {
+
+function ChevronIcon({ className = '' }) {
   return (
     <svg
-      className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-faint"
+      className={`pointer-events-none text-ink-faint ${className}`}
       width="14"
       height="14"
       viewBox="0 0 24 24"
@@ -1223,6 +3030,7 @@ function ChevronIcon() {
   );
 }
 
+
 function CloseIcon({ size = 18 }) {
   return (
     <svg
@@ -1235,6 +3043,34 @@ function CloseIcon({ size = 18 }) {
       strokeLinecap="round"
     >
       <path d="m6 6 12 12M18 6 6 18" />
+    </svg>
+  );
+}
+
+
+function PaymentIcon({ size = 17 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect
+        x="3"
+        y="5"
+        width="18"
+        height="14"
+        rx="2"
+      />
+
+      <path d="M3 10h18" />
+
+      <path d="M7 15h3" />
     </svg>
   );
 }
