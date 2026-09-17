@@ -202,8 +202,8 @@ function CustomDropdown({
             >
                 <span
                     className={`text-sm font-medium ${selected
-                            ? 'text-ink'
-                            : 'text-ink-faint'
+                        ? 'text-ink'
+                        : 'text-ink-faint'
                         }`}
                 >
                     {selected?.label || placeholder}
@@ -443,12 +443,23 @@ export default function ServiceModal({
         if (
             form.price !== '' &&
             form.price !== null &&
-            Number(form.price) < 0
+            (Number.isNaN(Number(form.price)) || Number(form.price) < 0)
         ) {
             setSubmitError(
-                'Price cannot be negative.'
+                'Price must be a valid number.'
             );
             return;
+        }
+
+        if (form.tax_type === 'included') {
+            const taxRate = Number(form.tax_rate);
+
+            if (Number.isNaN(taxRate) || taxRate <= 0 || taxRate > 100) {
+                setSubmitError(
+                    'Enter a valid GST rate between 0.01% and 100%.'
+                );
+                return;
+            }
         }
 
         onSubmit(event);
@@ -739,7 +750,7 @@ export default function ServiceModal({
                                     hint={
                                         priceIsCustom
                                             ? 'Custom pricing'
-                                            : 'Before applicable tax'
+                                            : 'Price including taxes if applicable '
                                     }
                                 >
                                     <div className="relative">
@@ -793,6 +804,69 @@ export default function ServiceModal({
                                         className="w-full rounded-xl border border-border bg-white px-3.5 py-3 text-sm font-medium text-ink outline-none transition-all duration-200 placeholder:text-ink-faint hover:border-brand/30 focus:border-brand focus:ring-4 focus:ring-brand/10 disabled:cursor-not-allowed disabled:bg-canvas-soft disabled:text-ink-muted"
                                     />
                                 </FormField>
+                            </div>
+
+                            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                                <FormField
+                                    label="Tax / GST treatment"
+                                    hint="Required"
+                                >
+                                    <CustomDropdown
+                                        value={form.tax_type || 'not_applicable'}
+                                        onChange={(value) => {
+                                            updateForm('tax_type', value);
+                                            if (value === 'not_applicable') {
+                                                updateForm('tax_rate', '');
+                                            }
+                                        }}
+                                        options={[
+                                            {
+                                                value: 'included',
+                                                label: 'GST included in price',
+                                            },
+                                            {
+                                                value: 'not_applicable',
+                                                label: 'GST not applicable',
+                                            },
+                                        ]}
+                                        placeholder="Select tax treatment"
+                                    />
+                                </FormField>
+
+                                <FormField
+                                    label="GST rate"
+                                    hint={form.tax_type === 'included' ? 'Example: 18%' : 'Not required'}
+                                >
+                                    <div className="relative">
+                                        <input
+                                            type="number"
+                                            min="0.01"
+                                            max="100"
+                                            step="0.01"
+                                            value={form.tax_type === 'included' ? form.tax_rate || '' : ''}
+                                            onChange={(event) => updateForm('tax_rate', event.target.value)}
+                                            disabled={form.tax_type !== 'included'}
+                                            placeholder={form.tax_type === 'included' ? '18' : 'Not applicable'}
+                                            className="w-full rounded-xl border border-border bg-white px-3.5 py-3 pr-8 text-sm font-medium text-ink outline-none transition-all duration-200 placeholder:text-ink-faint hover:border-brand/30 focus:border-brand focus:ring-4 focus:ring-brand/10 disabled:cursor-not-allowed disabled:bg-canvas-soft disabled:text-ink-faint"
+                                        />
+                                        {form.tax_type === 'included' && (
+                                            <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-ink-muted">
+                                                %
+                                            </span>
+                                        )}
+                                    </div>
+                                </FormField>
+                            </div>
+
+                            <div className="mt-4 rounded-xl border border-brand/10 bg-brand-softer px-4 py-3">
+                                <p className="text-xs font-semibold text-ink">
+                                    Customer-facing tax label
+                                </p>
+                                <p className="mt-1 text-[11px] leading-5 text-ink-muted">
+                                    {form.tax_type === 'included'
+                                        ? `GST included in the displayed price${form.tax_rate ? ` (${form.tax_rate}%)` : ''}. No additional GST will be added to the listed price.`
+                                        : 'GST not applicable to this service. No GST will be added to the listed price.'}
+                                </p>
                             </div>
 
                             <div className="mt-4">

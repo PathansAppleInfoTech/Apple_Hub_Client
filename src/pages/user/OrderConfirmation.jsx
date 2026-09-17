@@ -65,6 +65,38 @@ export default function OrderConfirmation() {
     ? formatPaymentMethod(order.payment_method)
     : 'Razorpay';
 
+  // order.amount is the final amount charged to the customer.
+  // If GST is included, the pre-tax amount is derived from the final price.
+  const totalAmount = Number(order.amount || 0);
+  const taxType = order.tax_type === 'included' ? 'included' : 'not_applicable';
+  const taxRate =
+    taxType === 'included' && Number.isFinite(Number(order.tax_rate))
+      ? Number(order.tax_rate)
+      : null;
+
+  let taxableAmount = Number(order.taxable_amount);
+  let taxAmount = Number(order.tax_amount);
+
+  if (
+    taxType === 'included' &&
+    taxRate !== null &&
+    (!Number.isFinite(taxableAmount) || !Number.isFinite(taxAmount))
+  ) {
+    taxableAmount = totalAmount / (1 + taxRate / 100);
+    taxableAmount = Math.round(taxableAmount * 100) / 100;
+    taxAmount = Math.round((totalAmount - taxableAmount) * 100) / 100;
+  }
+
+  if (taxType === 'not_applicable') {
+    taxableAmount = totalAmount;
+    taxAmount = 0;
+  }
+
+  const taxLabel =
+    taxType === 'included'
+      ? `GST included${taxRate !== null ? ` (${taxRate}%)` : ''}`
+      : 'GST not applicable';
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-canvas px-4 py-12 sm:px-6 lg:py-20">
 
@@ -96,38 +128,34 @@ export default function OrderConfirmation() {
 
             {/* Outer ring */}
             <div
-              className={`absolute inset-0 rounded-full border border-brand/10 ${
-                showContent
+              className={`absolute inset-0 rounded-full border border-brand/10 ${showContent
                   ? 'animate-[successRing_1.8s_ease-out_0.3s_both]'
                   : 'opacity-0'
-              }`}
+                }`}
             />
 
             {/* Inner ring */}
             <div
-              className={`absolute inset-3 rounded-full border border-brand/15 ${
-                showContent
+              className={`absolute inset-3 rounded-full border border-brand/15 ${showContent
                   ? 'animate-[successRing_1.4s_ease-out_0.2s_both]'
                   : 'opacity-0'
-              }`}
+                }`}
             />
 
             {/* Glow */}
             <div
-              className={`absolute inset-5 rounded-full bg-brand/10 blur-md ${
-                showContent
+              className={`absolute inset-5 rounded-full bg-brand/10 blur-md ${showContent
                   ? 'animate-[successGlow_1s_ease-out_both]'
                   : 'opacity-0'
-              }`}
+                }`}
             />
 
             {/* Main circle */}
             <div
-              className={`absolute left-1/2 top-1/2 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white shadow-[0_15px_45px_rgba(91,61,240,0.16)] ${
-                showContent
+              className={`absolute left-1/2 top-1/2 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white shadow-[0_15px_45px_rgba(91,61,240,0.16)] ${showContent
                   ? 'animate-[successPop_0.65s_cubic-bezier(0.34,1.56,0.64,1)_both]'
                   : 'opacity-0'
-              }`}
+                }`}
             >
               <div className="flex h-[68px] w-[68px] items-center justify-center rounded-full bg-brand">
 
@@ -159,46 +187,41 @@ export default function OrderConfirmation() {
 
             {/* Particles */}
             <span
-              className={`absolute left-2 top-9 h-1.5 w-1.5 rounded-full bg-brand ${
-                showContent
+              className={`absolute left-2 top-9 h-1.5 w-1.5 rounded-full bg-brand ${showContent
                   ? 'animate-[particleOne_1.5s_ease-out_0.4s_both]'
                   : 'opacity-0'
-              }`}
+                }`}
             />
 
             <span
-              className={`absolute right-3 top-5 h-2 w-2 rounded-full bg-gold ${
-                showContent
+              className={`absolute right-3 top-5 h-2 w-2 rounded-full bg-gold ${showContent
                   ? 'animate-[particleTwo_1.6s_ease-out_0.5s_both]'
                   : 'opacity-0'
-              }`}
+                }`}
             />
 
             <span
-              className={`absolute bottom-5 right-1 h-1.5 w-1.5 rounded-full bg-brand ${
-                showContent
+              className={`absolute bottom-5 right-1 h-1.5 w-1.5 rounded-full bg-brand ${showContent
                   ? 'animate-[particleThree_1.4s_ease-out_0.6s_both]'
                   : 'opacity-0'
-              }`}
+                }`}
             />
 
             <span
-              className={`absolute bottom-2 left-7 h-2 w-2 rounded-full bg-whatsapp ${
-                showContent
+              className={`absolute bottom-2 left-7 h-2 w-2 rounded-full bg-whatsapp ${showContent
                   ? 'animate-[particleFour_1.5s_ease-out_0.55s_both]'
                   : 'opacity-0'
-              }`}
+                }`}
             />
 
           </div>
 
           {/* Status */}
           <div
-            className={`mt-5 transition-all duration-700 ${
-              showContent
+            className={`mt-5 transition-all duration-700 ${showContent
                 ? 'translate-y-0 opacity-100'
                 : 'translate-y-3 opacity-0'
-            }`}
+              }`}
           >
             <span className="inline-flex items-center gap-2 rounded-full border border-whatsapp/20 bg-whatsapp-soft px-4 py-2 text-[11px] font-extrabold tracking-[0.15em] text-whatsapp-deep">
 
@@ -214,11 +237,10 @@ export default function OrderConfirmation() {
 
           {/* Heading */}
           <div
-            className={`mt-5 transition-all delay-150 duration-700 ${
-              showContent
+            className={`mt-5 transition-all delay-150 duration-700 ${showContent
                 ? 'translate-y-0 opacity-100'
                 : 'translate-y-4 opacity-0'
-            }`}
+              }`}
           >
             <h1 className="font-display text-3xl font-extrabold tracking-tight text-ink sm:text-4xl lg:text-[42px]">
               Payment successful!
@@ -233,25 +255,22 @@ export default function OrderConfirmation() {
         </section>
 
         {/* =========================================================
-            SCREENSHOT REMINDER
+            EMAIL CONFIRMATION / GSTIN NOTICE
         ========================================================= */}
 
         <div
-          className={`mt-10 transition-all delay-300 duration-700 ${
-            showContent
+          className={`mt-10 transition-all delay-300 duration-700 ${showContent
               ? 'translate-y-0 opacity-100'
               : 'translate-y-5 opacity-0'
-          }`}
+            }`}
         >
           <div className="relative overflow-hidden rounded-2xl border border-brand/15 bg-gradient-to-r from-brand-softer via-white to-brand-softer p-5 shadow-[0_12px_35px_rgba(91,61,240,0.06)] sm:p-6">
-
             <div
               aria-hidden="true"
               className="absolute -right-16 -top-20 h-40 w-40 rounded-full bg-brand/[0.05] blur-2xl"
             />
 
-            <div className="relative flex items-center gap-4">
-
+            <div className="relative flex items-start gap-4">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-soft text-brand shadow-sm">
                 <svg
                   width="22"
@@ -260,34 +279,28 @@ export default function OrderConfirmation() {
                   fill="none"
                 >
                   <rect
-                    x="3.5"
+                    x="3"
                     y="5"
-                    width="17"
+                    width="18"
                     height="14"
                     rx="2.5"
                     stroke="currentColor"
                     strokeWidth="1.7"
                   />
-                  <circle
-                    cx="12"
-                    cy="12"
-                    r="3"
-                    stroke="currentColor"
-                    strokeWidth="1.7"
-                  />
                   <path
-                    d="M8 5l1.1-2h5.8L16 5"
+                    d="m4 7 8 6 8-6"
                     stroke="currentColor"
                     strokeWidth="1.7"
                     strokeLinecap="round"
+                    strokeLinejoin="round"
                   />
                 </svg>
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-display text-sm font-bold text-ink">
-                    Save your order confirmation
+                    Confirmation email sent
                   </p>
 
                   <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-brand">
@@ -296,11 +309,29 @@ export default function OrderConfirmation() {
                 </div>
 
                 <p className="mt-1 text-xs leading-5 text-ink-muted sm:text-sm">
-                  Please take a screenshot of this page and keep it for
-                  your records.
+                  A confirmation email with your order and payment details has
+                  been sent to{' '}
+                  <span className="font-bold text-ink">
+                    {order.customer_email || 'the email address provided at checkout'}
+                  </span>
+                  .
                 </p>
-              </div>
 
+                {taxType === 'included' && (
+                  <div className="mt-3 rounded-xl border border-brand/10 bg-white/80 px-4 py-3">
+                    <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-ink-faint">
+                      GSTIN
+                    </p>
+                    <p className="mt-1 font-mono text-sm font-bold tracking-wide text-ink">
+                      32AAOCP4547L1ZZ
+                    </p>
+                    <p className="mt-1 text-[10px] leading-4 text-ink-muted">
+                      GST applicable to this service. The GST amount is already
+                      included in the total amount shown below.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -310,11 +341,10 @@ export default function OrderConfirmation() {
         ========================================================= */}
 
         <section
-          className={`mt-6 overflow-hidden rounded-[28px] border border-border bg-surface shadow-[0_25px_80px_rgba(21,22,43,0.08)] transition-all delay-[450ms] duration-700 ${
-            showContent
+          className={`mt-6 overflow-hidden rounded-[28px] border border-border bg-surface shadow-[0_25px_80px_rgba(21,22,43,0.08)] transition-all delay-[450ms] duration-700 ${showContent
               ? 'translate-y-0 opacity-100'
               : 'translate-y-6 opacity-0'
-          }`}
+            }`}
         >
 
           {/* Receipt header */}
@@ -389,9 +419,12 @@ export default function OrderConfirmation() {
                   </p>
                 </div>
 
-                <div className="shrink-0">
-                  <p className="font-display text-2xl font-extrabold tracking-tight text-brand">
-                    {formatPrice(order.amount)}
+                <div className="shrink-0 text-left sm:text-right">
+                  <p className="text-[9px] font-extrabold uppercase tracking-[0.15em] text-ink-faint">
+                    Total Paid
+                  </p>
+                  <p className="mt-1 font-display text-2xl font-extrabold tracking-tight text-brand">
+                    {formatPrice(totalAmount)}
                   </p>
                 </div>
 
@@ -486,6 +519,100 @@ export default function OrderConfirmation() {
 
               </div>
 
+              {/* TAX & AMOUNT BREAKDOWN */}
+              <div className="mt-5 overflow-hidden rounded-2xl border border-border bg-canvas-soft">
+                <div className="border-b border-border px-5 py-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-extrabold uppercase tracking-[0.17em] text-ink-faint">
+                        Amount Breakdown
+                      </p>
+                      <p className="mt-1 text-xs text-ink-muted">
+                        Final amount paid through Razorpay
+                      </p>
+                    </div>
+
+                    <span
+                      className={`rounded-full px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-wide ${taxType === 'included'
+                          ? 'bg-brand-soft text-brand'
+                          : 'border border-border bg-white text-ink-muted'
+                        }`}
+                    >
+                      {taxLabel}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="px-5 py-4">
+                  <div className="space-y-3">
+                    <AmountRow
+                      label={
+                        taxType === 'included'
+                          ? 'Taxable Amount'
+                          : 'Service Amount'
+                      }
+                      value={formatPrice(taxableAmount)}
+                    />
+
+                    {taxType === 'included' ? (
+                      <AmountRow
+                        label={`GST${taxRate !== null ? ` (${taxRate}%)` : ''}`}
+                        value={formatPrice(taxAmount)}
+                      />
+                    ) : (
+                      <AmountRow
+                        label="GST"
+                        value="Not applicable"
+                        muted
+                      />
+                    )}
+
+                    <div className="border-t border-dashed border-border pt-3">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-sm font-extrabold text-ink">
+                            Total Amount
+                          </p>
+                          <p className="mt-0.5 text-[10px] text-ink-faint">
+                            Amount charged to your payment method
+                          </p>
+                        </div>
+
+                        <p className="font-display text-xl font-extrabold tracking-tight text-brand">
+                          {formatPrice(totalAmount)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    className={`mt-4 rounded-xl px-4 py-3 ${taxType === 'included'
+                        ? 'bg-brand-soft'
+                        : 'border border-border bg-white'
+                      }`}
+                  >
+                    {taxType === 'included' ? (
+                      <p className="text-[11px] leading-5 text-brand-deep">
+                        <span className="font-extrabold">
+                          GST is included in the price.
+                        </span>{' '}
+                        The displayed total already includes
+                        {taxRate !== null ? ` ${taxRate}% GST` : ' GST'}.
+                        No additional GST has been charged at checkout.
+                      </p>
+                    ) : (
+                      <p className="text-[11px] leading-5 text-ink-muted">
+                        <span className="font-extrabold text-ink">
+                          GST is not applicable to this service.
+                        </span>{' '}
+                        The total shown above is the complete amount paid.
+                        No additional GST has been charged at checkout.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
             </div>
 
             {/* Total */}
@@ -503,9 +630,16 @@ export default function OrderConfirmation() {
                 </p>
               </div>
 
-              <p className="font-display text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
-                {formatPrice(order.amount)}
-              </p>
+              <div className="text-right">
+                <p className="font-display text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
+                  {formatPrice(totalAmount)}
+                </p>
+                <p className="mt-1 text-[10px] font-semibold text-ink-faint">
+                  {taxType === 'included'
+                    ? 'Including applicable GST'
+                    : 'GST not applicable'}
+                </p>
+              </div>
 
             </div>
 
@@ -535,11 +669,10 @@ export default function OrderConfirmation() {
         ========================================================= */}
 
         <section
-          className={`mt-5 rounded-2xl border border-border bg-surface p-6 transition-all delay-[600ms] duration-700 sm:p-7 ${
-            showContent
+          className={`mt-5 rounded-2xl border border-border bg-surface p-6 transition-all delay-[600ms] duration-700 sm:p-7 ${showContent
               ? 'translate-y-0 opacity-100'
               : 'translate-y-5 opacity-0'
-          }`}
+            }`}
         >
 
           <div className="flex gap-4">
@@ -592,10 +725,10 @@ export default function OrderConfirmation() {
                   number="02"
                   text="Order Assigned"
                 />
-
+                
                 <NextStep
                   number="03"
-                  text="Team Contacts You"
+                  text="We’ll Take Care From Here"
                 />
 
               </div>
@@ -610,11 +743,10 @@ export default function OrderConfirmation() {
         ========================================================= */}
 
         <div
-          className={`mt-7 flex flex-col gap-3 transition-all delay-[700ms] duration-700 sm:flex-row sm:justify-center ${
-            showContent
+          className={`mt-7 flex flex-col gap-3 transition-all delay-[700ms] duration-700 sm:flex-row sm:justify-center ${showContent
               ? 'translate-y-0 opacity-100'
               : 'translate-y-4 opacity-0'
-          }`}
+            }`}
         >
 
           <Link
@@ -654,9 +786,8 @@ export default function OrderConfirmation() {
         ========================================================= */}
 
         <div
-          className={`mt-9 text-center transition-all delay-[800ms] duration-700 ${
-            showContent ? 'opacity-100' : 'opacity-0'
-          }`}
+          className={`mt-9 text-center transition-all delay-[800ms] duration-700 ${showContent ? 'opacity-100' : 'opacity-0'
+            }`}
         >
 
           <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-[10px] font-bold uppercase tracking-[0.1em] text-ink-faint">
@@ -846,11 +977,10 @@ function DetailCard({
       <div className="flex items-center gap-3">
 
         <div
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
-            success
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${success
               ? 'bg-whatsapp-soft text-whatsapp-deep'
               : 'bg-brand-soft text-brand'
-          }`}
+            }`}
         >
           {icon}
         </div>
@@ -862,15 +992,35 @@ function DetailCard({
       </div>
 
       <p
-        className={`mt-3 text-sm font-bold ${
-          success ? 'text-whatsapp-deep' : 'text-ink'
-        } ${breakValue ? 'break-all' : ''} ${
-          mono ? 'font-mono text-[11px] leading-5' : ''
-        }`}
+        className={`mt-3 text-sm font-bold ${success ? 'text-whatsapp-deep' : 'text-ink'
+          } ${breakValue ? 'break-all' : ''} ${mono ? 'font-mono text-[11px] leading-5' : ''
+          }`}
       >
         {value}
       </p>
 
+    </div>
+  );
+}
+
+
+/* ===============================================================
+   AMOUNT ROW
+=============================================================== */
+
+function AmountRow({ label, value, muted = false }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-xs font-semibold text-ink-muted">
+        {label}
+      </span>
+
+      <span
+        className={`text-sm font-bold ${muted ? 'text-ink-faint' : 'text-ink'
+          }`}
+      >
+        {value}
+      </span>
     </div>
   );
 }
@@ -883,24 +1033,21 @@ function DetailCard({
 function NextStep({ number, text, active = false }) {
   return (
     <div
-      className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 ${
-        active
+      className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 ${active
           ? 'border-whatsapp/20 bg-whatsapp-soft'
           : 'border-border bg-canvas-soft'
-      }`}
+        }`}
     >
       <span
-        className={`font-display text-[9px] font-extrabold ${
-          active ? 'text-whatsapp-deep' : 'text-brand'
-        }`}
+        className={`font-display text-[9px] font-extrabold ${active ? 'text-whatsapp-deep' : 'text-brand'
+          }`}
       >
         {number}
       </span>
 
       <span
-        className={`text-[10px] font-bold ${
-          active ? 'text-whatsapp-deep' : 'text-ink-muted'
-        }`}
+        className={`text-[10px] font-bold ${active ? 'text-whatsapp-deep' : 'text-ink-muted'
+          }`}
       >
         {text}
       </span>

@@ -21,6 +21,8 @@ const EMPTY_FORM = {
   description: '',
   price: '',
   price_suffix: '',
+  tax_type: 'not_applicable',
+  tax_rate: '',
   duration: '',
   popular: 0,
   features: [],
@@ -208,6 +210,14 @@ export default function AdminServices() {
       price_suffix:
         service.price_suffix || '',
 
+      tax_type:
+        service.tax_type || 'not_applicable',
+
+      tax_rate:
+        service.tax_rate === null || service.tax_rate === undefined
+          ? ''
+          : String(service.tax_rate),
+
       duration:
         service.duration || '',
 
@@ -272,6 +282,12 @@ export default function AdminServices() {
 
       price_suffix:
         form.price_suffix.trim() || null,
+
+      tax_type: form.tax_type === 'included' ? 'included' : 'not_applicable',
+      tax_rate:
+        form.tax_type === 'included' && form.tax_rate !== ''
+          ? Number(form.tax_rate)
+          : null,
 
       duration:
         form.duration.trim() || null,

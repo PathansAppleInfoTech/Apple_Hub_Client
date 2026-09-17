@@ -161,6 +161,14 @@ function normalizeService(
     popular:
       Number(service.popular) === 1,
 
+    tax_type:
+      service.tax_type === 'included' ? 'included' : 'not_applicable',
+
+    tax_rate:
+      service.tax_rate === null || service.tax_rate === undefined
+        ? null
+        : Number(service.tax_rate),
+
     is_active:
       Number(service.is_active) === 1,
   };
@@ -193,6 +201,26 @@ function formatPrice(service) {
   return service.price_suffix
     ? `${formatted} ${service.price_suffix}`
     : formatted;
+}
+
+function getTaxLabel(service) {
+  if (service.tax_type === 'included') {
+    return service.tax_rate
+      ? `GST included (${service.tax_rate}%)`
+      : 'GST included in price';
+  }
+
+  return 'GST not applicable';
+}
+
+function getTaxDescription(service) {
+  if (service.tax_type === 'included') {
+    return service.tax_rate
+      ? `The displayed price includes ${service.tax_rate}% GST. No additional GST will be added at checkout.`
+      : 'The displayed price includes GST. No additional GST will be added at checkout.';
+  }
+
+  return 'GST is not applicable to this service. No additional GST will be added at checkout.';
 }
 
 // --------------------------------------------------
@@ -403,6 +431,20 @@ function PurchasePanel({
                 <span>{service.duration}</span>
               </div>
             )}
+
+            <div className="mt-4 flex items-start gap-2 rounded-xl border border-border bg-canvas-soft px-3.5 py-3">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white text-brand shadow-sm">
+                <CheckCircleIcon />
+              </span>
+              <div>
+                <p className="text-xs font-bold text-ink">
+                  {getTaxLabel(service)}
+                </p>
+                <p className="mt-0.5 text-[10px] leading-4 text-ink-muted">
+                  {getTaxDescription(service)}
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="my-7 h-px bg-border" />
@@ -584,6 +626,9 @@ function RelatedServices({
                           {service.duration}
                         </p>
                       )}
+                      <p className="mt-1 text-[9px] font-semibold text-ink-faint">
+                        {getTaxLabel(service)}
+                      </p>
                     </div>
 
                     <span className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-ink-muted transition-all group-hover:border-ink group-hover:bg-ink group-hover:text-white">

@@ -336,9 +336,9 @@ export default function AdminOrders() {
 
     const unchanged =
       String(order.assigned_executive || '') ===
-        String(nextExecutive || '') &&
+      String(nextExecutive || '') &&
       String(order.assigned_technical || '') ===
-        String(nextTechnical || '');
+      String(nextTechnical || '');
 
     if (unchanged) {
       toast('No assignment changes to save.');
@@ -443,9 +443,9 @@ export default function AdminOrders() {
     const isAlreadyAssigned =
       role === 'executive'
         ? Number(order.assigned_executive) ===
-          Number(admin.id)
+        Number(admin.id)
         : Number(order.assigned_technical) ===
-          Number(admin.id);
+        Number(admin.id);
 
     if (isAlreadyAssigned) {
       return;
@@ -458,10 +458,9 @@ export default function AdminOrders() {
 
     if (!isAvailable) {
       toast.error(
-        `This order has already been taken by another ${
-          role === 'executive'
-            ? 'Executive'
-            : 'Technical staff member'
+        `This order has already been taken by another ${role === 'executive'
+          ? 'Executive'
+          : 'Technical staff member'
         }.`
       );
       return;
@@ -706,11 +705,10 @@ export default function AdminOrders() {
                       filter.value
                     )
                   }
-                  className={`h-10 shrink-0 rounded-xl px-3.5 text-xs font-semibold transition ${
-                    active
-                      ? 'bg-brand text-white shadow-sm shadow-brand/20'
-                      : 'border border-border bg-white text-ink-muted hover:border-brand/20 hover:bg-brand-softer hover:text-brand'
-                  }`}
+                  className={`h-10 shrink-0 rounded-xl px-3.5 text-xs font-semibold transition ${active
+                    ? 'bg-brand text-white shadow-sm shadow-brand/20'
+                    : 'border border-border bg-white text-ink-muted hover:border-brand/20 hover:bg-brand-softer hover:text-brand'
+                    }`}
                 >
                   {filter.label}
                 </button>
@@ -724,28 +722,27 @@ export default function AdminOrders() {
 
         {(search ||
           statusFilter !== 'all') && (
-          <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+            <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
 
-            <p className="text-xs text-ink-muted">
-              {loading
-                ? 'Searching orders...'
-                : `${orders.length} order${
-                    orders.length === 1
-                      ? ''
-                      : 's'
+              <p className="text-xs text-ink-muted">
+                {loading
+                  ? 'Searching orders...'
+                  : `${orders.length} order${orders.length === 1
+                    ? ''
+                    : 's'
                   } found`}
-            </p>
+              </p>
 
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="text-xs font-semibold text-brand hover:underline"
-            >
-              Clear filters
-            </button>
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="text-xs font-semibold text-brand hover:underline"
+              >
+                Clear filters
+              </button>
 
-          </div>
-        )}
+            </div>
+          )}
 
       </div>
 
@@ -1048,10 +1045,10 @@ function OrderTableRow({
     admin?.role === 'admin' ||
     (admin?.role === 'executive' &&
       Number(order.assigned_executive) ===
-        Number(admin.id)) ||
+      Number(admin.id)) ||
     (admin?.role === 'technical' &&
       Number(order.assigned_technical) ===
-        Number(admin.id));
+      Number(admin.id));
 
 
   const canTakeExecutive =
@@ -1271,7 +1268,7 @@ function AssignmentCell({
             {isMine
               ? 'You'
               : name ||
-                'Unassigned'}
+              'Unassigned'}
           </span>
 
           {isMine && (
@@ -1324,10 +1321,10 @@ function OrderMobileCard({
     admin?.role === 'admin' ||
     (admin?.role === 'executive' &&
       Number(order.assigned_executive) ===
-        Number(admin.id)) ||
+      Number(admin.id)) ||
     (admin?.role === 'technical' &&
       Number(order.assigned_technical) ===
-        Number(admin.id));
+      Number(admin.id));
 
 
   return (
@@ -1572,7 +1569,7 @@ function AssignmentMobile({
           {isMine
             ? 'You'
             : name ||
-              'Unassigned'}
+            'Unassigned'}
         </span>
 
       </div>
@@ -1760,13 +1757,12 @@ function CustomDropdown({
   return (
     <div
       ref={rootRef}
-      className={`relative ${
-        fullWidth
-          ? 'w-full'
-          : compact
-            ? 'w-[145px]'
-            : 'w-full'
-      }`}
+      className={`relative ${fullWidth
+        ? 'w-full'
+        : compact
+          ? 'w-[145px]'
+          : 'w-full'
+        }`}
     >
       <button
         ref={buttonRef}
@@ -1776,17 +1772,14 @@ function CustomDropdown({
           if (disabled) return;
           setOpen((current) => !current);
         }}
-        className={`flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-border bg-white px-3 text-left text-xs font-semibold text-ink outline-none transition ${
-          open
-            ? 'border-brand/40 ring-4 ring-brand/10'
-            : 'hover:border-brand/30'
-        } ${
-          disabled
+        className={`flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-border bg-white px-3 text-left text-xs font-semibold text-ink outline-none transition ${open
+          ? 'border-brand/40 ring-4 ring-brand/10'
+          : 'hover:border-brand/30'
+          } ${disabled
             ? 'cursor-not-allowed opacity-60'
             : 'cursor-pointer'
-        } ${
-          compact ? 'text-xs' : 'text-sm'
-        }`}
+          } ${compact ? 'text-xs' : 'text-sm'
+          }`}
         aria-haspopup="listbox"
         aria-expanded={open}
       >
@@ -1795,9 +1788,8 @@ function CustomDropdown({
         </span>
 
         <ChevronIcon
-          className={`shrink-0 transition-transform ${
-            open ? 'rotate-180' : ''
-          }`}
+          className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''
+            }`}
         />
       </button>
 
@@ -1825,11 +1817,10 @@ function CustomDropdown({
                 onClick={() =>
                   choose(option)
                 }
-                className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left transition ${
-                  active
-                    ? 'bg-brand-soft text-brand'
-                    : 'text-ink-muted hover:bg-canvas-soft hover:text-ink'
-                }`}
+                className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left transition ${active
+                  ? 'bg-brand-soft text-brand'
+                  : 'text-ink-muted hover:bg-canvas-soft hover:text-ink'
+                  }`}
               >
                 <span className="min-w-0 truncate">
                   {option.label}
@@ -2040,12 +2031,57 @@ function OrderDetailsModal({
   onAssign,
   onClose,
 }) {
+
+  const totalAmount = Number(order.amount || 0);
+
+  const taxType =
+    order.tax_type === 'included'
+      ? 'included'
+      : 'not_applicable';
+
+  const taxRate =
+    taxType === 'included' && order.tax_rate != null
+      ? Number(order.tax_rate)
+      : 0;
+
+  let taxableAmount =
+    order.taxable_amount != null
+      ? Number(order.taxable_amount)
+      : totalAmount;
+
+  let taxAmount =
+    order.tax_amount != null
+      ? Number(order.tax_amount)
+      : 0;
+
+  // Fallback calculation in case older orders don't have the
+  // tax breakdown stored.
+  if (
+    taxType === 'included' &&
+    (!Number.isFinite(taxableAmount) || taxableAmount <= 0)
+  ) {
+    taxableAmount =
+      taxRate > 0
+        ? totalAmount / (1 + taxRate / 100)
+        : totalAmount;
+  }
+
+  if (
+    taxType === 'included' &&
+    (!Number.isFinite(taxAmount) || taxAmount < 0)
+  ) {
+    taxAmount = totalAmount - taxableAmount;
+  }
+
+  taxableAmount = Math.round(taxableAmount * 100) / 100;
+  taxAmount = Math.round(taxAmount * 100) / 100;
+
   const [executiveId, setExecutiveId] =
     useState(
       order.assigned_executive
         ? String(
-            order.assigned_executive
-          )
+          order.assigned_executive
+        )
         : ''
     );
 
@@ -2053,8 +2089,8 @@ function OrderDetailsModal({
     useState(
       order.assigned_technical
         ? String(
-            order.assigned_technical
-          )
+          order.assigned_technical
+        )
         : ''
     );
 
@@ -2063,16 +2099,16 @@ function OrderDetailsModal({
     setExecutiveId(
       order.assigned_executive
         ? String(
-            order.assigned_executive
-          )
+          order.assigned_executive
+        )
         : ''
     );
 
     setTechnicalId(
       order.assigned_technical
         ? String(
-            order.assigned_technical
-          )
+          order.assigned_technical
+        )
         : ''
     );
   }, [
@@ -2247,34 +2283,87 @@ function OrderDetailsModal({
 
           {/* Order */}
 
+          {/* Order */}
+
           <DetailSection
             title="Order Information"
             icon={<OrdersIcon />}
           >
-
             <DetailRow
               label="Service"
-              value={
-                order.service_title
-              }
+              value={order.service_title}
               multiline
             />
 
             <DetailRow
-              label="Amount"
-              value={formatPrice(
-                order.amount
-              )}
+              label="Price"
+              value={formatPrice(totalAmount)}
+              strong
+            />
+
+            {taxType === 'included' ? (
+              <>
+                <DetailRow
+                  label="Taxable Amount"
+                  value={formatPrice(taxableAmount)}
+                />
+
+                <DetailRow
+                  label={`GST (${taxRate}%)`}
+                  value={formatPrice(taxAmount)}
+                />
+
+                <DetailRow
+                  label="GST Status"
+                  value="Included in price"
+                />
+
+                <div className="mt-3 rounded-2xl border border-brand/20 bg-brand-soft/50 px-4 py-3">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand text-white">
+                      <span className="text-xs font-bold">GST</span>
+                    </div>
+
+                    <div>
+                      <p className="text-sm font-semibold text-ink">
+                        GST Included
+                      </p>
+
+                      <p className="mt-1 text-xs leading-5 text-ink-muted">
+                        The displayed service price already includes {taxRate}% GST.
+                        No additional GST was added to the customer payment.
+                      </p>
+
+                      <p className="mt-2 text-xs font-semibold text-ink">
+                        GSTIN: 32AAOCP4547L1ZZ
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="mt-3 rounded-2xl border border-border bg-canvas-soft px-4 py-3">
+                <p className="text-sm font-semibold text-ink">
+                  GST Not Applicable
+                </p>
+
+                <p className="mt-1 text-xs leading-5 text-ink-muted">
+                  GST is not applicable to this service. No additional GST
+                  was added to the customer payment.
+                </p>
+              </div>
+            )}
+
+            <DetailRow
+              label="Total Amount"
+              value={formatPrice(totalAmount)}
               strong
             />
 
             <DetailRow
               label="Placed on"
-              value={formatDateTime(
-                order.created_at
-              )}
+              value={formatDateTime(order.created_at)}
             />
-
           </DetailSection>
 
 
@@ -2418,8 +2507,8 @@ function OrderDetailsModal({
               value={
                 order.payment_method
                   ? formatStatus(
-                      order.payment_method
-                    )
+                    order.payment_method
+                  )
                   : 'Razorpay'
               }
             />
@@ -2442,11 +2531,29 @@ function OrderDetailsModal({
               multiline
             />
 
+            {taxType === 'included' && (
+              <>
+                <DetailRow
+                  label="Taxable Amount"
+                  value={formatPrice(taxableAmount)}
+                />
+
+                <DetailRow
+                  label={`GST (${taxRate}%)`}
+                  value={formatPrice(taxAmount)}
+                />
+
+                <DetailRow
+                  label="GSTIN"
+                  value="32AAOCP4547L1ZZ"
+                  multiline
+                />
+              </>
+            )}
+
             <DetailRow
               label="Amount Paid"
-              value={formatPrice(
-                order.amount
-              )}
+              value={formatPrice(totalAmount)}
               strong
             />
 
@@ -2514,7 +2621,7 @@ function AssignmentDetail({
             {isMine
               ? 'You'
               : name ||
-                'Unassigned'}
+              'Unassigned'}
           </p>
 
         </div>
@@ -2596,11 +2703,10 @@ function DetailRow({
 }) {
   return (
     <div
-      className={`flex gap-4 border-b border-border py-3.5 last:border-b-0 ${
-        multiline
-          ? 'items-start'
-          : 'items-center'
-      }`}
+      className={`flex gap-4 border-b border-border py-3.5 last:border-b-0 ${multiline
+        ? 'items-start'
+        : 'items-center'
+        }`}
     >
 
       <span className="w-28 shrink-0 text-xs font-medium text-ink-muted">
@@ -2608,15 +2714,13 @@ function DetailRow({
       </span>
 
       <span
-        className={`min-w-0 flex-1 text-right text-sm ${
-          strong
-            ? 'font-display font-semibold text-ink'
-            : 'text-ink'
-        } ${
-          multiline
+        className={`min-w-0 flex-1 text-right text-sm ${strong
+          ? 'font-display font-semibold text-ink'
+          : 'text-ink'
+          } ${multiline
             ? 'break-words leading-6'
             : ''
-        }`}
+          }`}
       >
         {value}
       </span>
@@ -2733,9 +2837,8 @@ function ActionConfirmationModal({
     confirmLabel = 'Change Status';
   } else if (isAssignment) {
     title = 'Confirm Staff Assignment';
-    description = `Save the Executive and Technical assignments for ${
-      action.order?.order_number || 'this order'
-    }?`;
+    description = `Save the Executive and Technical assignments for ${action.order?.order_number || 'this order'
+      }?`;
     confirmLabel = 'Save Assignment';
   } else if (isTake) {
     const roleLabel =
@@ -2743,9 +2846,8 @@ function ActionConfirmationModal({
         ? 'Executive'
         : 'Technical';
     title = 'Take This Order?';
-    description = `Assign ${
-      action.order?.order_number || 'this order'
-    } to yourself as ${roleLabel}?`;
+    description = `Assign ${action.order?.order_number || 'this order'
+      } to yourself as ${roleLabel}?`;
     confirmLabel = 'Take Order';
   }
 

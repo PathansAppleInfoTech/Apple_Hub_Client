@@ -302,8 +302,16 @@ function ContactFormSection() {
                             <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-brand-soft text-brand-deep">
                                 <PinIcon />
                             </span>
-                            <h3 className="mt-4 font-display text-base font-bold text-ink">Our headquarters</h3>
+                            <h3 className="mt-4 font-display text-base font-bold text-ink">Our Headquarters</h3>
                             <p className="mt-2 text-sm leading-relaxed text-ink-muted">{HQ_ADDRESS}</p>
+                            <div className="mt-4 rounded-xl border border-border bg-canvas-soft px-4 py-3">
+                                <p className="text-xs font-semibold text-ink-muted">
+                                    GSTIN
+                                </p>
+                                <p className="mt-1 text-sm font-semibold tracking-wide text-ink">
+                                    32AAOCP4547L1ZZ
+                                </p>
+                            </div>
                             <a href="/about" className="mt-3 inline-block text-xs font-semibold text-brand-deep hover:underline">
                                 See all our global offices →
                             </a>

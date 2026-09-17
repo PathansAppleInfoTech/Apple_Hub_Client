@@ -83,6 +83,13 @@ export default function Footer() {
                 <br />
                 Kerala, India
               </p>
+
+              <p className="mt-1">
+                GSTIN:{' '}
+                <span className="font-medium text-ink-muted">
+                  32AAOCP4547L1ZZ
+                </span>
+              </p>
             </address>
 
             <div className="mt-5">
@@ -218,13 +225,15 @@ export default function Footer() {
 
         {/* Bottom bar */}
         <div className="flex flex-col gap-5 text-xs text-ink-faint sm:flex-row sm:items-center sm:justify-between">
-          <p>
-            © {new Date().getFullYear()}{' '}
-            <span className="font-semibold text-ink-muted">
-              Apple Hub
-            </span>{' '}
-            — a product by Pathans Apple Infotech Pvt. Ltd.
-          </p>
+          <div>
+            <p>
+              © {new Date().getFullYear()}{' '}
+              <span className="font-semibold text-ink-muted">
+                Apple Hub
+              </span>{' '}
+              — a product by Pathans Apple Infotech Pvt. Ltd.
+            </p>
+          </div>
 
           <div className="flex items-center gap-2">
             <span>Built for growing businesses</span>
