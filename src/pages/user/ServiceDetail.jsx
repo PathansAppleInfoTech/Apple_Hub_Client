@@ -58,6 +58,131 @@ const DEFAULT_COLORS = [
   'coral',
 ];
 
+const CATEGORY_IMAGES = {
+  facebook:
+    'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=1400&q=85',
+
+  social:
+    'https://images.unsplash.com/photo-1557838923-2985c318be48?auto=format&fit=crop&w=1400&q=85',
+
+  marketing:
+    'https://images.unsplash.com/photo-1533750349088-cd871a92f312?auto=format&fit=crop&w=1400&q=85',
+
+  video:
+    'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1400&q=85',
+
+  ai:
+    'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1400&q=85',
+
+  whatsapp:
+    'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?auto=format&fit=crop&w=1400&q=85',
+
+  web:
+    'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1400&q=85',
+
+  design:
+    'https://images.unsplash.com/photo-1561070791-2526d30994b5?auto=format&fit=crop&w=1400&q=85',
+
+  seo:
+    'https://images.unsplash.com/photo-1432888622747-4eb9a8efeb07?auto=format&fit=crop&w=1400&q=85',
+
+  technology:
+    'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1400&q=85',
+
+  default:
+    'https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1400&q=85',
+};
+
+function getCategoryImage(category) {
+  // If backend later provides an image,
+  // automatically use that instead.
+  const backendImage =
+    category?.image_url ||
+    category?.image ||
+    category?.banner_image ||
+    category?.cover_image;
+
+  if (backendImage) {
+    return backendImage;
+  }
+
+  const text = [
+    category?.slug,
+    category?.name,
+    category?.title,
+    category?.description,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  if (
+    text.includes('facebook') ||
+    text.includes('instagram')
+  ) {
+    return CATEGORY_IMAGES.facebook;
+  }
+
+  if (text.includes('social')) {
+    return CATEGORY_IMAGES.social;
+  }
+
+  if (
+    text.includes('marketing') ||
+    text.includes('advertising') ||
+    text.includes('ads')
+  ) {
+    return CATEGORY_IMAGES.marketing;
+  }
+
+  if (
+    text.includes('video') ||
+    text.includes('reel') ||
+    text.includes('ai')
+  ) {
+    return CATEGORY_IMAGES.video;
+  }
+
+  if (
+    text.includes('whatsapp') ||
+    text.includes('automation')
+  ) {
+    return CATEGORY_IMAGES.whatsapp;
+  }
+
+  if (
+    text.includes('web') ||
+    text.includes('website') ||
+    text.includes('development')
+  ) {
+    return CATEGORY_IMAGES.web;
+  }
+
+  if (
+    text.includes('design') ||
+    text.includes('creative') ||
+    text.includes('graphic')
+  ) {
+    return CATEGORY_IMAGES.design;
+  }
+
+  if (
+    text.includes('seo') ||
+    text.includes('search')
+  ) {
+    return CATEGORY_IMAGES.seo;
+  }
+
+  if (
+    text.includes('technology') ||
+    text.includes('software') ||
+    text.includes('it')
+  ) {
+    return CATEGORY_IMAGES.technology;
+  }
+
+  return CATEGORY_IMAGES.default;
+}
 // --------------------------------------------------
 // HELPERS
 // --------------------------------------------------
@@ -108,6 +233,8 @@ function normalizeCategory(category, index) {
       category.tagline ||
       category.description ||
       'Professional solutions designed to help your business grow.',
+
+    image: getCategoryImage(category),
   };
 }
 
@@ -1003,8 +1130,46 @@ export default function ServiceDetail() {
                   )}
                 </div>
 
+                {/* Category Image */}
+                <motion.div
+                  initial={{
+                    opacity: 0,
+                    y: 18,
+                  }}
+                  animate={{
+                    opacity: 1,
+                    y: 0,
+                  }}
+                  transition={{
+                    duration: 0.6,
+                    delay: 0.08,
+                  }}
+                  className="relative mt-7 overflow-hidden rounded-[2rem] border border-border bg-white shadow-[0_20px_60px_-30px_rgba(21,22,43,0.25)]"
+                >
+                  <div className="relative h-56 overflow-hidden sm:h-72">
+                    <img
+                      src={category.image}
+                      alt={category.name}
+                      className="h-full w-full object-cover transition-transform duration-700 hover:scale-105"
+                      loading="eager"
+                    />
+
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+
+                    <div className="absolute bottom-5 left-5 right-5 sm:bottom-6 sm:left-6">
+                      <span className="inline-flex rounded-full border border-white/20 bg-black/20 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-white backdrop-blur-md">
+                        {category.name}
+                      </span>
+
+                      <p className="mt-2 max-w-lg text-sm font-medium text-white/90 sm:text-base">
+                        {category.tagline}
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+
                 {/* Heading */}
-                <h1 className="mt-6 max-w-3xl font-display text-4xl font-extrabold leading-[1.08] tracking-tight text-ink sm:text-5xl">
+                <h1 className="mt-7 max-w-3xl font-display text-4xl font-extrabold leading-[1.08] tracking-tight text-ink sm:text-5xl">
                   {service.title}
                 </h1>
 
