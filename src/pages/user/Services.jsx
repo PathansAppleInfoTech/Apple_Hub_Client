@@ -50,108 +50,6 @@ const COLOR_MAP = {
 const DEFAULT_COLORS = ['brand', 'teal', 'whatsapp', 'coral'];
 
 // --------------------------------------------------
-// CATEGORY IMAGES
-// --------------------------------------------------
-// Images are assigned by category.
-// You do NOT need an image field in your database.
-//
-// If your backend category has `image` or `image_url`,
-// that will automatically take priority.
-// --------------------------------------------------
-
-const CATEGORY_IMAGES = {
-  facebook: {
-    image:
-      'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=1400&q=85',
-    position: 'center',
-  },
-
-  instagram: {
-    image:
-      'https://images.unsplash.com/photo-1611262588024-d12430b98920?auto=format&fit=crop&w=1400&q=85',
-    position: 'center',
-  },
-
-  social: {
-    image:
-      'https://images.unsplash.com/photo-1557838923-2985c318be48?auto=format&fit=crop&w=1400&q=85',
-    position: 'center',
-  },
-
-  marketing: {
-    image:
-      'https://images.unsplash.com/photo-1533750349088-cd871a92f312?auto=format&fit=crop&w=1400&q=85',
-    position: 'center',
-  },
-
-  ads: {
-    image:
-      'https://images.unsplash.com/photo-1557838923-2985c318be48?auto=format&fit=crop&w=1400&q=85',
-    position: 'center',
-  },
-
-  video: {
-    image:
-      'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=1400&q=85',
-    position: 'center',
-  },
-
-  ai: {
-    image:
-      'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1400&q=85',
-    position: 'center',
-  },
-
-  whatsapp: {
-    image:
-      'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?auto=format&fit=crop&w=1400&q=85',
-    position: 'center',
-  },
-
-  automation: {
-    image:
-      'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1400&q=85',
-    position: 'center',
-  },
-
-  technology: {
-    image:
-      'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1400&q=85',
-    position: 'center',
-  },
-
-  web: {
-    image:
-      'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1400&q=85',
-    position: 'center',
-  },
-
-  website: {
-    image:
-      'https://images.unsplash.com/photo-1547658719-da2b51169166?auto=format&fit=crop&w=1400&q=85',
-    position: 'center',
-  },
-
-  design: {
-    image:
-      'https://images.unsplash.com/photo-1561070791-2526d30994b5?auto=format&fit=crop&w=1400&q=85',
-    position: 'center',
-  },
-
-  seo: {
-    image:
-      'https://images.unsplash.com/photo-1432888622747-4eb9a8efeb07?auto=format&fit=crop&w=1400&q=85',
-    position: 'center',
-  },
-
-  default: {
-    image:
-      'https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1400&q=85',
-    position: 'center',
-  },
-};
-
-// --------------------------------------------------
 // HELPERS
 // --------------------------------------------------
 
@@ -179,103 +77,12 @@ function getCategoryColor(category, index = 0) {
 }
 
 function getCategoryImage(category) {
-  // If the backend already provides an image,
-  // use that first.
-
-  const backendImage =
-    category?.image_url ||
-    category?.image ||
-    category?.banner_image ||
-    category?.cover_image;
-
-  if (backendImage) {
-    return {
-      image: backendImage,
-      position: 'center',
-    };
-  }
-
-  const searchableText = [
-    category?.slug,
-    category?.name,
-    category?.title,
-    category?.description,
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
-
-  // Match specific categories first
-
-  if (
-    searchableText.includes('facebook') ||
-    searchableText.includes('instagram')
-  ) {
-    return CATEGORY_IMAGES.facebook;
-  }
-
-  if (
-    searchableText.includes('social media') ||
-    searchableText.includes('social')
-  ) {
-    return CATEGORY_IMAGES.social;
-  }
-
-  if (
-    searchableText.includes('marketing') ||
-    searchableText.includes('advertising') ||
-    searchableText.includes('ads')
-  ) {
-    return CATEGORY_IMAGES.marketing;
-  }
-
-  if (
-    searchableText.includes('ai') ||
-    searchableText.includes('video') ||
-    searchableText.includes('reel')
-  ) {
-    return CATEGORY_IMAGES.video;
-  }
-
-  if (
-    searchableText.includes('whatsapp') ||
-    searchableText.includes('automation')
-  ) {
-    return CATEGORY_IMAGES.whatsapp;
-  }
-
-  if (
-    searchableText.includes('web') ||
-    searchableText.includes('website') ||
-    searchableText.includes('development')
-  ) {
-    return CATEGORY_IMAGES.web;
-  }
-
-  if (
-    searchableText.includes('design') ||
-    searchableText.includes('creative') ||
-    searchableText.includes('graphic')
-  ) {
-    return CATEGORY_IMAGES.design;
-  }
-
-  if (
-    searchableText.includes('seo') ||
-    searchableText.includes('search engine')
-  ) {
-    return CATEGORY_IMAGES.seo;
-  }
-
-  if (
-    searchableText.includes('technology') ||
-    searchableText.includes('software') ||
-    searchableText.includes('it')
-  ) {
-    return CATEGORY_IMAGES.technology;
-  }
-
-  return CATEGORY_IMAGES.default;
+  return {
+    image:
+      category.image_url ||
+      'https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1400&q=85',
+    position: 'center',
+  };
 }
 
 function formatServicePrice(service) {
@@ -305,14 +112,11 @@ function formatServicePrice(service) {
 function normalizeCategory(category, index) {
   return {
     ...category,
-
     color: getCategoryColor(category, index),
-
     tagline:
       category.tagline ||
       category.description ||
-      'Explore our services and choose the package that fits your business.',
-
+      'Professional solutions designed to help your business grow.',
     imageData: getCategoryImage(category),
   };
 }
@@ -489,11 +293,10 @@ function FilterPill({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full border px-4 py-2 text-xs font-semibold transition-colors ${
-        active
-          ? colorClass
-          : 'border-border bg-white text-ink-muted hover:border-ink/20'
-      }`}
+      className={`rounded-full border px-4 py-2 text-xs font-semibold transition-colors ${active
+        ? colorClass
+        : 'border-border bg-white text-ink-muted hover:border-ink/20'
+        }`}
     >
       {children}
     </button>
@@ -625,7 +428,7 @@ function ServiceCategorySection({
   const colors = COLOR_MAP[color];
 
   const imageData =
-    category.imageData || CATEGORY_IMAGES.default;
+    category.imageData;
 
   return (
     <motion.div
@@ -953,7 +756,7 @@ export default function Services() {
 
         toast.error(
           error?.message ||
-            'Unable to load services. Please try again.'
+          'Unable to load services. Please try again.'
         );
       } finally {
         if (mounted) {
@@ -981,7 +784,7 @@ export default function Services() {
       const categoryMatches =
         activeCategory === 'all' ||
         String(service.category_id) ===
-          String(activeCategory);
+        String(activeCategory);
 
       if (!categoryMatches) {
         return false;
@@ -1028,7 +831,7 @@ export default function Services() {
         services.filter(
           (service) =>
             String(service.category_id) ===
-              String(category.id) &&
+            String(category.id) &&
             (() => {
               const normalizedQuery =
                 query.trim().toLowerCase();
@@ -1073,7 +876,7 @@ export default function Services() {
       if (
         activeCategory !== 'all' &&
         String(category.id) !==
-          String(activeCategory)
+        String(activeCategory)
       ) {
         return false;
       }

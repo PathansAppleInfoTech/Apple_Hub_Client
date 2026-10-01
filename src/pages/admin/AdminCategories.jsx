@@ -11,6 +11,7 @@ import { LoadingState } from '../../components/admin/StateViews';
 const EMPTY_FORM = {
   name: '',
   description: '',
+  image_url: '',
   is_active: 1,
 };
 
@@ -107,6 +108,7 @@ export default function AdminCategories() {
     setForm({
       name: category.name || '',
       description: category.description || '',
+      image_url: category.image_url || '',
       is_active: Number(category.is_active) === 1 ? 1 : 0,
     });
 
@@ -136,12 +138,12 @@ export default function AdminCategories() {
       is_active: e.target.checked ? 1 : 0,
     }));
   }
-
   async function handleSave(e) {
     e.preventDefault();
 
     const name = form.name.trim();
     const description = form.description.trim();
+    const imageUrl = form.image_url.trim();
 
     if (!name) {
       toast.error('Please enter a category name.');
@@ -153,6 +155,11 @@ export default function AdminCategories() {
       return;
     }
 
+    if (imageUrl.length > 500) {
+      toast.error('Image URL is too long.');
+      return;
+    }
+
     if (saving) return;
 
     setSaving(true);
@@ -160,6 +167,7 @@ export default function AdminCategories() {
     const payload = {
       name,
       description,
+      image_url: imageUrl,
       is_active: Number(form.is_active),
     };
 
@@ -321,8 +329,8 @@ export default function AdminCategories() {
                   type="button"
                   onClick={() => setStatusFilter(filter.value)}
                   className={`h-10 shrink-0 rounded-xl px-4 text-sm font-medium transition ${active
-                      ? 'bg-brand text-white shadow-sm shadow-brand/20'
-                      : 'border border-border bg-white text-ink-muted hover:border-brand/20 hover:bg-brand-softer hover:text-brand'
+                    ? 'bg-brand text-white shadow-sm shadow-brand/20'
+                    : 'border border-border bg-white text-ink-muted hover:border-brand/20 hover:bg-brand-softer hover:text-brand'
                     }`}
                 >
                   {filter.label}
@@ -480,9 +488,17 @@ function CategoryTableRow({ category, onEdit, onDeactivate }) {
     <tr className="group transition hover:bg-canvas-soft/50">
       <td className="px-5 py-4">
         <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft font-display text-sm font-semibold text-brand">
-            {category.name?.charAt(0)?.toUpperCase() || 'C'}
-          </span>
+          {category.image_url ? (
+            <img
+              src={category.image_url}
+              alt={category.name}
+              className="h-10 w-10 shrink-0 rounded-xl object-cover"
+            />
+          ) : (
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft font-display text-sm font-semibold text-brand">
+              {category.name?.charAt(0)?.toUpperCase() || 'C'}
+            </span>
+          )}
 
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-ink">
@@ -546,9 +562,17 @@ function CategoryMobileCard({ category, onEdit, onDeactivate }) {
     <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm shadow-ink/[0.025]">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-soft font-display font-semibold text-brand">
-            {category.name?.charAt(0)?.toUpperCase() || 'C'}
-          </span>
+          {category.image_url ? (
+            <img
+              src={category.image_url}
+              alt={category.name}
+              className="h-11 w-11 shrink-0 rounded-xl object-cover"
+            />
+          ) : (
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-soft font-display font-semibold text-brand">
+              {category.name?.charAt(0)?.toUpperCase() || 'C'}
+            </span>
+          )}
 
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-ink">
@@ -603,8 +627,8 @@ function StatusBadge({ active }) {
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${active
-          ? 'bg-whatsapp-soft text-whatsapp-deep'
-          : 'bg-canvas-soft text-ink-faint'
+        ? 'bg-whatsapp-soft text-whatsapp-deep'
+        : 'bg-canvas-soft text-ink-faint'
         }`}
     >
       <span
@@ -772,6 +796,39 @@ function CategoryModal({
               </p>
             </div>
 
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
+                Category Image URL
+              </label>
+
+              <input
+                type="url"
+                name="image_url"
+                value={form.image_url}
+                onChange={onChange}
+                disabled={saving}
+                placeholder="https://images.unsplash.com/..."
+                className="mt-2 h-11 w-full rounded-xl border border-border bg-canvas-soft px-4 text-sm text-ink outline-none transition placeholder:text-ink-faint focus:border-brand/40 focus:bg-white focus:ring-4 focus:ring-brand/10 disabled:cursor-not-allowed disabled:opacity-60"
+              />
+
+              <p className="mt-1.5 text-[11px] leading-5 text-ink-faint">
+                Add the image URL that should be displayed for this category.
+              </p>
+
+              {form.image_url && (
+                <div className="mt-3 overflow-hidden rounded-xl border border-border bg-canvas-soft">
+                  <img
+                    src={form.image_url}
+                    alt="Category preview"
+                    className="h-32 w-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+
             <label className="flex cursor-pointer items-center justify-between rounded-2xl border border-border bg-canvas-soft px-4 py-3.5">
               <div>
                 <p className="text-sm font-semibold text-ink">
@@ -796,14 +853,14 @@ function CategoryModal({
                 }
                 disabled={saving}
                 className={`relative h-6 w-11 shrink-0 rounded-full transition ${Number(form.is_active) === 1
-                    ? 'bg-brand'
-                    : 'bg-ink-faint/30'
+                  ? 'bg-brand'
+                  : 'bg-ink-faint/30'
                   } disabled:opacity-50`}
               >
                 <span
                   className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition ${Number(form.is_active) === 1
-                      ? 'left-6'
-                      : 'left-1'
+                    ? 'left-6'
+                    : 'left-1'
                     }`}
                 />
               </button>
