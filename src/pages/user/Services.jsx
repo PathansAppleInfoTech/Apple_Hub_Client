@@ -480,7 +480,7 @@ function ServiceCategorySection({
                   </h2>
 
                   <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/80 sm:text-base">
-                    {category.tagline}
+                    {/* {category.tagline} */}
                   </p>
                 </div>
               </div>

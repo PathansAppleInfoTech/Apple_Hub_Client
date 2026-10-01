@@ -1162,7 +1162,7 @@ export default function ServiceDetail() {
                       </span>
 
                       <p className="mt-2 max-w-lg text-sm font-medium text-white/90 sm:text-base">
-                        {category.tagline}
+                        {/* {category.tagline} */}
                       </p>
                     </div>
                   </div>
